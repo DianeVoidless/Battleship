@@ -7,12 +7,16 @@ public class HandDisplay : MonoBehaviour
     public GameObject _CardDisplayPrefab;
     public CardArtDatabase _ArtDatabase;
 
+    private List<CardDisplay> _CurrentDisplays = new List<CardDisplay>(); 
+
     public void ShowHand(List<Card> hand, PlayerColor owner)
     {
         foreach (Transform child in transform)
         {
             Destroy(child.gameObject);
         }
+
+        _CurrentDisplays.Clear();
 
         foreach (Card card in hand)
         {
@@ -21,8 +25,31 @@ public class HandDisplay : MonoBehaviour
 
             Sprite sprite = _ArtDatabase.GetCardSprite(card, owner);
             display.SetSprite(sprite);
+            display._RepresentedCard = card;
 
             cardObject.AddComponent<CardHoverEffect>();
+
+            _CurrentDisplays.Add(display);
+        }
+    }
+
+    public void PinCard(Card card)
+    {
+        foreach (CardDisplay display in _CurrentDisplays)
+        {
+            if (display._RepresentedCard == card)
+            {
+                display.GetComponent<CardHoverEffect>().Pin();
+                return;
+            }
+        }
+    }
+
+    public void UnpinAllCards() 
+    {
+        foreach (CardDisplay display in _CurrentDisplays)
+        {
+            display.GetComponent<CardHoverEffect>().Unpin();
         }
     }
 }

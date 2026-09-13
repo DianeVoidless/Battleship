@@ -26,3 +26,20 @@ public enum UtilityType
     HealOrDraw3,
     CleanseOrExtraPlay
 }
+
+public enum CardTargetMode
+{
+    None,
+    EnemyCell,
+    OwnCell,
+    HandMultiSelect,
+    BranchChoice 
+}
+public enum CardBranch 
+{
+    NotChosen,
+    Heal,
+    Draw3,
+    Cleanse,
+    ExtraPlay
+}

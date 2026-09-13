@@ -4,32 +4,72 @@ public class HandProximityZone : MonoBehaviour
 {
     public RectTransform _HandPanel;
     public RectTransform _ZoneArea;
-    public float _LiftAmount = 120f;
+    public float _RestHeight = 91.432f;   
+    public float _RaisedHeight = 317f;    
 
     private Vector2 _RestPosition;
     private bool _IsRaised = false;
+    private bool _ForceLowered;
+    private bool _PinnedRaised; 
 
-
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         _RestPosition = _HandPanel.anchoredPosition;
+        _ZoneArea.sizeDelta = new Vector2(_ZoneArea.sizeDelta.x, _RestHeight); 
     }
 
-    // Update is called once per frame
     void Update()
     {
-        bool mouseInZone = RectTransformUtility.RectangleContainsScreenPoint(_ZoneArea, Input.mousePosition);
+        bool wantRaised; 
 
-        if(mouseInZone && !_IsRaised)
+        if (_PinnedRaised)
         {
-            _HandPanel.anchoredPosition = _RestPosition + new Vector2(0f, _LiftAmount);
-            _IsRaised = true;
+            wantRaised = true;
         }
-        else if (!mouseInZone && _IsRaised)
+        else if (_ForceLowered)
         {
-            _HandPanel.anchoredPosition = _RestPosition;
-            _IsRaised = false;
+            wantRaised = false;
         }
+        else
+        {
+            wantRaised = RectTransformUtility.RectangleContainsScreenPoint(_ZoneArea, Input.mousePosition);
+        }
+
+        SetRaised(wantRaised); 
+    }
+
+    private void SetRaised(bool raised) 
+    {
+        if (raised == _IsRaised)
+        {
+            return;
+        }
+        _IsRaised = raised;
+
+        float targetHeight = raised ? _RaisedHeight : _RestHeight;
+        _ZoneArea.sizeDelta = new Vector2(_ZoneArea.sizeDelta.x, targetHeight);
+
+        float heightDelta = targetHeight - _RestHeight;
+        _HandPanel.anchoredPosition = _RestPosition + new Vector2(0f, heightDelta);
+    }
+
+    public void PinHand()
+    {
+        _PinnedRaised = true;
+    }
+
+    public void UnpinHand()
+    {
+        _PinnedRaised = false;
+    }
+
+    public void ForceLowerHand()
+    {
+        _ForceLowered = true;
+    }
+
+    public void ReleaseForceLowerHand()
+    {
+        _ForceLowered = false;
     }
 }
