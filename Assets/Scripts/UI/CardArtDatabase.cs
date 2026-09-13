@@ -8,6 +8,7 @@ public class CardArtDatabase : MonoBehaviour
     public Sprite _RedSubmarine;
     public Sprite _RedHealer;
     public Sprite _RedCoverBoard;
+    public Sprite _RedMiss;
 
     public Sprite _BlueCarrier;
     public Sprite _BlueCruiser;
@@ -15,6 +16,7 @@ public class CardArtDatabase : MonoBehaviour
     public Sprite _BlueSubmarine;
     public Sprite _BlueHealer;
     public Sprite _BlueCoverBoard;
+    public Sprite _BlueMiss;
 
     public Sprite _Red1DmgStrike;
     public Sprite _Red2DmgStrike;
@@ -55,6 +57,7 @@ public class CardArtDatabase : MonoBehaviour
                 case ShipType.Destroyer: return _RedDestroyer;
                 case ShipType.Submarine: return _RedSubmarine;
                 case ShipType.PatrolBoat: return _RedHealer;
+                case ShipType.None: return _RedMiss;
                 default: return null;
             }
         }
@@ -67,6 +70,7 @@ public class CardArtDatabase : MonoBehaviour
                 case ShipType.Destroyer: return _BlueDestroyer;
                 case ShipType.Submarine: return _BlueSubmarine;
                 case ShipType.PatrolBoat: return _BlueHealer;
+                case ShipType.None: return _BlueMiss;
                 default: return null;
             }
         }

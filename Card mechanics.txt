@@ -1,0 +1,8 @@
+- Red missile Damage cards: will deal a set amount of damage, amount also written on the card itself, to the selected board card. These cards cannot damage submarines. (_1DMG, _2DMG, _4DMG)
+- White missile Damage: will deal 1 damage if they target submarines. Otherwise, these cards can only reveal hidden cards, or be used redundantly on revealed ships, dealing no damage (_white_missile)
+- Shield cards: will add an additional 2HP to the selected, revealed player's board card (if revealed). Can stack with another shield. Any damage done to a shielded ship will first be absorbed by the shield. (_shield)
+- Wild cards:
+            (_wildcard_1): - Cleanse: Player must have at least 1 White missile Card in their hand. When this option is chosen, the player is prompted to select the cards they want replaced, from their hand, with freshly drawn cards(no guarantee that the drawn cards wont cointain white missiles too.)
+                           - Extra play: Player will be granted 2 consecutive turns.
+            (_wildcard_2): - Heal: Player must have at least 1 revealed damaged ship. Player must select a revealed, damaged ship from their board. The game will remove the highest damage card that had previously done damage to that ship. Player will then get 1 turn to play.
+                           - Draw 3: Player will automatically draw 3 fresh cards. Player will then have 1 turn to play.
