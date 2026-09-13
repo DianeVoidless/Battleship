@@ -8,6 +8,12 @@ public class CardDisplay : MonoBehaviour, IPointerClickHandler
     public Card _RepresentedCard;
     public GridCell _RepresentedCell;
 
+    public CardArtDatabase _ArtDatabase; // NEW: needed to look up wildcard sprites
+    public PlayerState _Owner; // NEW: needed to check IsBranchAvailable for this card's owner
+
+    private bool _HoveringGated; // NEW: is the mouse over this wildcard's gated half right now?
+    private bool _HoveringOther; // NEW: is the mouse over this wildcard's other half right now?
+
     public void SetSprite(Sprite sprite)
     {
         _CardImage.sprite = sprite;
@@ -15,13 +21,60 @@ public class CardDisplay : MonoBehaviour, IPointerClickHandler
 
     public void OnPointerClick(PointerEventData eventData)
     {
-        if(_RepresentedCard != null)
+        if (_RepresentedCard != null)
         {
             TurnController._Instance.OnCardClicked(this, _RepresentedCard);
         }
-        else if(_RepresentedCell  != null)
+        else if (_RepresentedCell != null)
         {
             TurnController._Instance.OnCellClicked(this, _RepresentedCell);
         }
+    }
+
+    public void SetWildcardHover(bool isGatedZone, bool hovering) // NEW: called by WildcardBranchZone when the mouse enters/exits a half
+    {
+        if (isGatedZone)
+        {
+            _HoveringGated = hovering;
+        }
+        else
+        {
+            _HoveringOther = hovering;
+        }
+        RefreshWildcardSprite();
+    }
+
+    public void RefreshWildcardSprite()
+    {
+        UtilityCard utilityCard = _RepresentedCard as UtilityCard;
+        if (utilityCard == null || utilityCard._Type == UtilityType.Shield)
+        {
+            return;
+        }
+
+        CardBranch gatedBranch = GetGatedBranch(utilityCard._Type);
+        bool available = utilityCard.IsBranchAvailable(gatedBranch, _Owner);
+
+        Sprite sprite = _ArtDatabase.GetWildcardSprite(utilityCard._Type, _Owner._Color, available, _HoveringGated, _HoveringOther);
+        SetSprite(sprite);
+    }
+
+    private CardBranch GetGatedBranch(UtilityType type) 
+    {
+        return type == UtilityType.CleanseOrExtraPlay ? CardBranch.Cleanse : CardBranch.Heal;
+    }
+
+    public void OnWildcardBranchClicked(bool isGatedZone, PointerEventData eventData)
+    {
+        UtilityCard utilityCard = _RepresentedCard as UtilityCard;
+        bool isLiveBranchChoice = utilityCard != null && utilityCard.GetTargetMode() == CardTargetMode.BranchChoice; 
+
+        if (!isLiveBranchChoice)
+        {
+            OnPointerClick(eventData);
+            return;
+        }
+
+        TurnController._Instance.OnWildcardBranchClicked(this, utilityCard, isGatedZone);
     }
 }

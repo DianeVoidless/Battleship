@@ -80,13 +80,13 @@ public class GameTester : MonoBehaviour
     {
         if (_ViewingAs == PlayerColor.Red)
         {
-            _HandDisplay.ShowHand(_CurrentGame._PlayerRed._Hand, PlayerColor.Red);
+            _HandDisplay.ShowHand(_CurrentGame._PlayerRed); 
             _RedBoardPanel.anchoredPosition = _NearPos;
             _BlueBoardPanel.anchoredPosition = _FarPos;
         }
         else
         {
-            _HandDisplay.ShowHand(_CurrentGame._PlayerBlue._Hand, PlayerColor.Blue);
+            _HandDisplay.ShowHand(_CurrentGame._PlayerBlue); 
             _BlueBoardPanel.anchoredPosition = _NearPos;
             _RedBoardPanel.anchoredPosition = _FarPos;
         }
