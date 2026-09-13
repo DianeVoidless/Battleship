@@ -43,22 +43,60 @@ public class CardArtDatabase : MonoBehaviour
     public WildcardSpriteSet _RedWildcard1;   
     public WildcardSpriteSet _RedWildcard2;   
     public WildcardSpriteSet _BlueWildcard1;  
-    public WildcardSpriteSet _BlueWildcard2;  
+    public WildcardSpriteSet _BlueWildcard2;
 
-    public Sprite GetShipSprite(ShipType ship, PlayerColor color, bool revealed)
+
+    public Sprite[] _RedCarrierDamaged;   // NEW: index 0 = 1 HP remaining, index 1 = 2 HP remaining, etc.
+    public Sprite[] _RedCruiserDamaged;   // NEW
+    public Sprite[] _RedDestroyerDamaged; // NEW
+    public Sprite[] _RedSubmarineDamaged; // NEW
+    public Sprite[] _RedHealerDamaged;    // NEW
+
+    public Sprite[] _BlueCarrierDamaged;   // NEW
+    public Sprite[] _BlueCruiserDamaged;   // NEW
+    public Sprite[] _BlueDestroyerDamaged; // NEW
+    public Sprite[] _BlueSubmarineDamaged; // NEW
+    public Sprite[] _BlueHealerDamaged;    // NEW
+
+    public Sprite _RedShield1HP;  // NEW: shield damaged down to 1 HP ("SHIELD x1")
+    public Sprite _BlueShield1HP; // NEW
+    public Sprite GetShipSprite(GridCell cell, PlayerColor color) // CHANGED: now takes the whole cell, so it can factor in remaining HP
     {
-        if (!revealed)
+        if (!cell._Revealed)
         {
-            if (color == PlayerColor.Red)
-
-            {
-                return _RedCoverBoard;
-            }
-            else
-            {
-                return _BlueCoverBoard;
-            }
+            return color == PlayerColor.Red ? _RedCoverBoard : _BlueCoverBoard;
         }
+
+        if (cell._Ship == ShipType.None)
+        {
+            return color == PlayerColor.Red ? _RedMiss : _BlueMiss;
+        }
+
+        if (cell.IsSunk()) // CHANGED: sunk ships are now fully invisible, not shown as a miss
+        {
+            return null;
+        }
+
+        int maxHP = ShipStats.GetMaxHP(cell._Ship);
+        int remaining = cell.GetRemainingHP();
+        Sprite fullSprite = GetFullShipSprite(cell._Ship, color);
+
+        if (remaining >= maxHP) // NEW: undamaged - use the existing plain sprite
+        {
+            return fullSprite;
+        }
+
+        Sprite[] damagedStages = GetDamagedShipSprites(cell._Ship, color);
+        if (remaining <= 0 || damagedStages == null || damagedStages.Length < remaining) // NEW: safety net - shouldn't normally trigger, sunk cells get removed by BoardDisplay instead
+        {
+            return fullSprite;
+        }
+
+        return damagedStages[remaining - 1]; // NEW: e.g. remaining = 3 -> index 2 -> the "3HP" sprite
+    }
+
+    private Sprite GetFullShipSprite(ShipType ship, PlayerColor color) // NEW: pulled out of the old GetShipSprite so both full and damaged lookups can share it
+    {
         if (color == PlayerColor.Red)
         {
             switch (ship)
@@ -68,7 +106,6 @@ public class CardArtDatabase : MonoBehaviour
                 case ShipType.Destroyer: return _RedDestroyer;
                 case ShipType.Submarine: return _RedSubmarine;
                 case ShipType.PatrolBoat: return _RedHealer;
-                case ShipType.None: return _RedMiss;
                 default: return null;
             }
         }
@@ -81,7 +118,34 @@ public class CardArtDatabase : MonoBehaviour
                 case ShipType.Destroyer: return _BlueDestroyer;
                 case ShipType.Submarine: return _BlueSubmarine;
                 case ShipType.PatrolBoat: return _BlueHealer;
-                case ShipType.None: return _BlueMiss;
+                default: return null;
+            }
+        }
+    }
+
+    private Sprite[] GetDamagedShipSprites(ShipType ship, PlayerColor color) // NEW
+    {
+        if (color == PlayerColor.Red)
+        {
+            switch (ship)
+            {
+                case ShipType.Carrier: return _RedCarrierDamaged;
+                case ShipType.Cruiser: return _RedCruiserDamaged;
+                case ShipType.Destroyer: return _RedDestroyerDamaged;
+                case ShipType.Submarine: return _RedSubmarineDamaged;
+                case ShipType.PatrolBoat: return _RedHealerDamaged;
+                default: return null;
+            }
+        }
+        else
+        {
+            switch (ship)
+            {
+                case ShipType.Carrier: return _BlueCarrierDamaged;
+                case ShipType.Cruiser: return _BlueCruiserDamaged;
+                case ShipType.Destroyer: return _BlueDestroyerDamaged;
+                case ShipType.Submarine: return _BlueSubmarineDamaged;
+                case ShipType.PatrolBoat: return _BlueHealerDamaged;
                 default: return null;
             }
         }
@@ -134,5 +198,18 @@ public class CardArtDatabase : MonoBehaviour
         }
 
         return gatedAvailable ? set._Base : set._GatedGray;
+    }
+
+    public Sprite GetShieldSprite(GridCell cell, PlayerColor color) // NEW: null means "no shield overlay to show"
+    {
+        if (cell._ShieldHP <= 0)
+        {
+            return null;
+        }
+        if (cell._ShieldHP == 1)
+        {
+            return color == PlayerColor.Red ? _RedShield1HP : _BlueShield1HP;
+        }
+        return color == PlayerColor.Red ? _RedShield : _BlueShield; // 2 (or more) - full shield
     }
 }

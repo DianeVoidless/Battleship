@@ -13,10 +13,35 @@ public class CardDisplay : MonoBehaviour, IPointerClickHandler
 
     private bool _HoveringGated; // NEW: is the mouse over this wildcard's gated half right now?
     private bool _HoveringOther; // NEW: is the mouse over this wildcard's other half right now?
+    public Image _ShieldOverlayImage; // NEW: a second Image, layered on top of _CardImage, for the shield icon
 
-    public void SetSprite(Sprite sprite)
+    public void SetSprite(Sprite sprite) // CHANGED: null now hides the card's image entirely, instead of showing a blank white box
     {
-        _CardImage.sprite = sprite;
+        if (sprite == null)
+        {
+            _CardImage.enabled = false;
+        }
+        else
+        {
+            _CardImage.enabled = true;
+            _CardImage.sprite = sprite;
+        }
+    }
+    public void SetShieldOverlay(Sprite sprite) // NEW: null hides the overlay entirely, a sprite shows and updates it
+    {
+        if (_ShieldOverlayImage == null)
+        {
+            return;
+        }
+        if (sprite == null)
+        {
+            _ShieldOverlayImage.enabled = false;
+        }
+        else
+        {
+            _ShieldOverlayImage.enabled = true;
+            _ShieldOverlayImage.sprite = sprite;
+        }
     }
 
     public void OnPointerClick(PointerEventData eventData)
