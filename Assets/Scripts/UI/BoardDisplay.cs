@@ -17,9 +17,12 @@ public class BoardDisplay : MonoBehaviour
             GameObject cardObject = Instantiate(_CardDisplayPrefab, transform);
             CardDisplay display = cardObject.GetComponent<CardDisplay>();
 
-            Sprite sprite = _ArtDatabase.GetShipSprite(cell._Ship, player._Color, cell._Revealed);
+            Sprite sprite = _ArtDatabase.GetShipSprite(cell, player._Color);
             display.SetSprite(sprite);
             display._RepresentedCell = cell;
+
+            Sprite shieldSprite = _ArtDatabase.GetShieldSprite(cell, player._Color); // NEW: shows/hides the shield overlay based on this cell's remaining shield HP
+            display.SetShieldOverlay(shieldSprite);
         }
     }
 }

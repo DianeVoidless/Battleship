@@ -56,4 +56,25 @@ public class GridCell
         }
         _DamageInstances.RemoveAt(highestIndex);
     }
+
+    public int GetTotalDamage() // NEW: sums every damage instance this cell has taken (shield hits never get added to this list, see TakeDamage)
+    {
+        int total = 0;
+        foreach (int amount in _DamageInstances)
+        {
+            total += amount;
+        }
+        return total;
+    }
+
+    public int GetRemainingHP() // NEW: max HP for this ship, minus everything it's taken so far, never below 0
+    {
+        int remaining = ShipStats.GetMaxHP(_Ship) - GetTotalDamage();
+        return remaining > 0 ? remaining : 0;
+    }
+
+    public bool IsSunk() // NEW: a real ship (not an empty cell) at 0 HP or less
+    {
+        return _Ship != ShipType.None && GetRemainingHP() <= 0;
+    }
 }
