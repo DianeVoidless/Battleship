@@ -5,7 +5,7 @@ public class TurnController : MonoBehaviour
     public static TurnController _Instance;
     public GameTester _GameTester;
     public HandProximityZone _HandProximityZone;
-    public HandDisplay _HandDisplay; 
+    public HandDisplay _HandDisplay;
 
     private Card _PendingCard;
 
@@ -25,10 +25,10 @@ public class TurnController : MonoBehaviour
             return;
         }
 
-        if (_PendingCard != null && _PendingCard.GetTargetMode() == CardTargetMode.BranchChoice && card != _PendingCard) // NEW: clicking a different card cancels a pinned wildcard
+        if (_PendingCard != null && card != _PendingCard) 
         {
-            _HandProximityZone.UnpinHand();
             _HandDisplay.UnpinAllCards();
+            _HandProximityZone.ReleaseForceLowerHand();
             _PendingCard = null;
         }
 
@@ -40,17 +40,15 @@ public class TurnController : MonoBehaviour
             return;
         }
 
-        if (mode == CardTargetMode.BranchChoice) 
+        if (mode == CardTargetMode.BranchChoice)
         {
-            _PendingCard = card;
-            _HandProximityZone.PinHand(); 
-            _HandDisplay.PinCard(card); 
-            Debug.Log("Selected wildcard - waiting for a branch choice");
+            Debug.Log("Choose one of the two options shown on the card");
             return;
         }
 
         _PendingCard = card;
-        _HandProximityZone.ForceLowerHand(); 
+        _HandProximityZone.ForceLowerHand();
+        _HandDisplay.PinCard(card); 
         Debug.Log("Selected " + card.GetType().Name + " - waiting for a " + mode + " target");
     }
 
@@ -68,7 +66,7 @@ public class TurnController : MonoBehaviour
 
         CardTargetMode mode = _PendingCard.GetTargetMode();
 
-        if (mode == CardTargetMode.BranchChoice) 
+        if (mode == CardTargetMode.BranchChoice)
         {
             Debug.Log("Ignored - choose a branch for this wildcard first");
             return;
@@ -109,18 +107,97 @@ public class TurnController : MonoBehaviour
         _GameTester.RefreshBoardsAndHand();
     }
 
-    public void OnBackgroundClicked() 
+    public void OnBackgroundClicked()
     {
         if (_PendingCard == null)
         {
             return;
         }
 
-        _HandProximityZone.UnpinHand();
-        _HandProximityZone.ReleaseForceLowerHand();
         _HandDisplay.UnpinAllCards();
+        _HandProximityZone.ReleaseForceLowerHand();
         _PendingCard = null;
 
         Debug.Log("Cancelled - clicked outside");
+    }
+
+    public void OnWildcardBranchClicked(CardDisplay display, UtilityCard card, bool isGatedZone)
+    {
+        GameState game = _GameTester.GetGame();
+        PlayerState activePlayer = (game._ActivePlayer == PlayerColor.Red) ? game._PlayerRed : game._PlayerBlue;
+
+        if (!activePlayer._Hand.Contains(card))
+        {
+            Debug.Log("Ignored - not your card to play right now");
+            return;
+        }
+
+        if (_PendingCard != null && card != _PendingCard)
+        {
+            _HandDisplay.UnpinAllCards();
+            _HandProximityZone.ReleaseForceLowerHand();
+            _PendingCard = null;
+        }
+
+        CardBranch branch = GetBranchForZone(card._Type, isGatedZone);
+
+        if (isGatedZone && !card.IsBranchAvailable(branch, activePlayer))
+        {
+            Debug.Log("Ignored - that branch isn't available right now");
+            return;
+        }
+
+        card.ChooseBranch(branch);
+
+        CardTargetMode mode = card.GetTargetMode();
+
+        if (mode == CardTargetMode.None)
+        {
+            ResolveNoTargetCard(card, activePlayer);
+            return;
+        }
+
+        if (mode == CardTargetMode.HandMultiSelect)
+        {
+            Debug.Log("This card needs a feature we haven't built yet (" + mode + ")");
+            _PendingCard = null;
+            return;
+        }
+
+        _PendingCard = card;
+        _HandProximityZone.ForceLowerHand();
+        _HandDisplay.PinCard(card);
+        Debug.Log("Branch chosen - waiting for a " + mode + " target");
+    }
+
+    private CardBranch GetBranchForZone(UtilityType type, bool isGatedZone)
+    {
+        if (type == UtilityType.CleanseOrExtraPlay)
+        {
+            return isGatedZone ? CardBranch.Cleanse : CardBranch.ExtraPlay;
+        }
+        return isGatedZone ? CardBranch.Heal : CardBranch.Draw3;
+    }
+
+    private void ResolveNoTargetCard(Card card, PlayerState activePlayer)
+    {
+        card.ResolveNoTarget(activePlayer);
+
+        GameState game = _GameTester.GetGame();
+        game.AddMoves(card.GetBonusMoves());
+        game.SpendMove();
+
+        _GameTester.SyncViewToActivePlayer();
+
+        activePlayer._Hand.Remove(card);
+        activePlayer._DiscardPile.Add(card);
+
+        _PendingCard = null;
+        _GameTester.RefreshBoardsAndHand();
+    }
+
+    public Card GetPendingCard()
+    {
+        return _PendingCard;
     }
 }

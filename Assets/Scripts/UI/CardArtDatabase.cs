@@ -23,16 +23,27 @@ public class CardArtDatabase : MonoBehaviour
     public Sprite _Red4DmgStrike;
     public Sprite _RedWhiteMissile;
     public Sprite _RedShield;
-    public Sprite _RedWildcard1;
-    public Sprite _RedWildcard2;
 
     public Sprite _Blue1DmgStrike;
     public Sprite _Blue2DmgStrike;
     public Sprite _Blue4DmgStrike;
     public Sprite _BlueWhiteMissile;
     public Sprite _BlueShield;
-    public Sprite _BlueWildcard1;
-    public Sprite _BlueWildcard2;
+
+    [System.Serializable] 
+    public class WildcardSpriteSet
+    {
+        public Sprite _Base;                    
+        public Sprite _GatedGray;                
+        public Sprite _GatedHighlight;            
+        public Sprite _OtherHighlight;            
+        public Sprite _OtherHighlightGatedGray;   
+    }
+
+    public WildcardSpriteSet _RedWildcard1;   
+    public WildcardSpriteSet _RedWildcard2;   
+    public WildcardSpriteSet _BlueWildcard1;  
+    public WildcardSpriteSet _BlueWildcard2;  
 
     public Sprite GetShipSprite(ShipType ship, PlayerColor color, bool revealed)
     {
@@ -98,11 +109,30 @@ public class CardArtDatabase : MonoBehaviour
             switch (utilityCard._Type)
             {
                 case UtilityType.Shield: return owner == PlayerColor.Red ? _RedShield : _BlueShield;
-                case UtilityType.HealOrDraw3: return owner == PlayerColor.Red ? _RedWildcard2 : _BlueWildcard2;
-                case UtilityType.CleanseOrExtraPlay: return owner == PlayerColor.Red ? _RedWildcard1 : _BlueWildcard1;
+                case UtilityType.HealOrDraw3: return (owner == PlayerColor.Red ? _RedWildcard2 : _BlueWildcard2)._Base; 
+                case UtilityType.CleanseOrExtraPlay: return (owner == PlayerColor.Red ? _RedWildcard1 : _BlueWildcard1)._Base; 
                 default: return null;
             }
         }
         return null;
+    }
+
+    public Sprite GetWildcardSprite(UtilityType type, PlayerColor owner, bool gatedAvailable, bool hoveringGated, bool hoveringOther) 
+    {
+        WildcardSpriteSet set = (type == UtilityType.CleanseOrExtraPlay)
+            ? (owner == PlayerColor.Red ? _RedWildcard1 : _BlueWildcard1)
+            : (owner == PlayerColor.Red ? _RedWildcard2 : _BlueWildcard2);
+
+        if (hoveringGated)
+        {
+            return gatedAvailable ? set._GatedHighlight : set._GatedGray; 
+        }
+
+        if (hoveringOther)
+        {
+            return gatedAvailable ? set._OtherHighlight : set._OtherHighlightGatedGray;
+        }
+
+        return gatedAvailable ? set._Base : set._GatedGray;
     }
 }

@@ -7,9 +7,9 @@ public class HandDisplay : MonoBehaviour
     public GameObject _CardDisplayPrefab;
     public CardArtDatabase _ArtDatabase;
 
-    private List<CardDisplay> _CurrentDisplays = new List<CardDisplay>(); 
+    private List<CardDisplay> _CurrentDisplays = new List<CardDisplay>();
 
-    public void ShowHand(List<Card> hand, PlayerColor owner)
+    public void ShowHand(PlayerState owner) 
     {
         foreach (Transform child in transform)
         {
@@ -18,14 +18,17 @@ public class HandDisplay : MonoBehaviour
 
         _CurrentDisplays.Clear();
 
-        foreach (Card card in hand)
+        foreach (Card card in owner._Hand) 
         {
             GameObject cardObject = Instantiate(_CardDisplayPrefab, transform);
             CardDisplay display = cardObject.GetComponent<CardDisplay>();
 
-            Sprite sprite = _ArtDatabase.GetCardSprite(card, owner);
+            Sprite sprite = _ArtDatabase.GetCardSprite(card, owner._Color); 
             display.SetSprite(sprite);
             display._RepresentedCard = card;
+            display._ArtDatabase = _ArtDatabase;
+            display._Owner = owner;
+            display.RefreshWildcardSprite();
 
             cardObject.AddComponent<CardHoverEffect>();
 
@@ -45,7 +48,7 @@ public class HandDisplay : MonoBehaviour
         }
     }
 
-    public void UnpinAllCards() 
+    public void UnpinAllCards()
     {
         foreach (CardDisplay display in _CurrentDisplays)
         {
