@@ -98,7 +98,8 @@ public class TurnController : MonoBehaviour
         activePlayer._Hand.Remove(_PendingCard); // MOVED: must happen before SpendMove(), since that can trigger the end-of-turn draw-up-to-5 check
         activePlayer._DiscardPile.Add(_PendingCard); // MOVED
 
-        game.AddMoves(_PendingCard.GetBonusMoves());
+        game.AddMoves(_PendingCard.GetBonusMoves()); // CHANGED: must read GetBonusMoves() before OnDiscarded() resets the chosen branch
+        _PendingCard.OnDiscarded(); // NEW: reset any wildcard's chosen branch so it works correctly if drawn again later
         game.SpendMove();
 
         _GameTester.SyncViewToActivePlayer();
@@ -161,6 +162,7 @@ public class TurnController : MonoBehaviour
         if (mode == CardTargetMode.HandMultiSelect)
         {
             Debug.Log("This card needs a feature we haven't built yet (" + mode + ")");
+            card.ChooseBranch(CardBranch.NotChosen); // NEW: undo the branch pick since Cleanse can't actually be played yet - otherwise this exact card is stuck forever, even on later clicks/turns
             _PendingCard = null;
             return;
         }
@@ -188,7 +190,8 @@ public class TurnController : MonoBehaviour
         activePlayer._DiscardPile.Add(card); // MOVED
 
         GameState game = _GameTester.GetGame();
-        game.AddMoves(card.GetBonusMoves());
+        game.AddMoves(card.GetBonusMoves()); // CHANGED: must read GetBonusMoves() before OnDiscarded() resets the chosen branch
+        card.OnDiscarded(); // NEW: reset any wildcard's chosen branch so it works correctly if drawn again later
         game.SpendMove();
 
         _GameTester.SyncViewToActivePlayer();

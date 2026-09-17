@@ -142,14 +142,26 @@ public class UtilityCard : Card
     {
         for (int i = 0; i < count; i++)
         {
-            if (owner._DrawPile.Count == 0)
+            if (owner._DrawPile.Count == 0) // CHANGED: reshuffle the discard pile back in first, same as PlayerState.DrawUpToHandSize, instead of giving up early
             {
-                break; // NEW: nothing left to draw, stop early instead of crashing
+                if (owner._DiscardPile.Count == 0)
+                {
+                    break; // nothing left anywhere to draw - stop instead of looping forever
+                }
+
+                owner._DrawPile.AddRange(owner._DiscardPile);
+                owner._DiscardPile.Clear();
+                GameSetup.ShuffleDeck(owner._DrawPile);
             }
 
             Card drawnCard = owner._DrawPile[0];
             owner._DrawPile.RemoveAt(0);
             owner._Hand.Add(drawnCard);
         }
+    }
+
+    public override void OnDiscarded() // NEW: wildcards must forget their branch choice, since the same instance can be reshuffled and drawn again later
+    {
+        _ChosenBranch = CardBranch.NotChosen;
     }
 }
