@@ -94,13 +94,14 @@ public class TurnController : MonoBehaviour
         }
 
         _PendingCard.Resolve(cell);
+
+        activePlayer._Hand.Remove(_PendingCard); // MOVED: must happen before SpendMove(), since that can trigger the end-of-turn draw-up-to-5 check
+        activePlayer._DiscardPile.Add(_PendingCard); // MOVED
+
         game.AddMoves(_PendingCard.GetBonusMoves());
         game.SpendMove();
 
         _GameTester.SyncViewToActivePlayer();
-
-        activePlayer._Hand.Remove(_PendingCard);
-        activePlayer._DiscardPile.Add(_PendingCard);
 
         _PendingCard = null;
         _HandProximityZone.ReleaseForceLowerHand();
@@ -183,14 +184,14 @@ public class TurnController : MonoBehaviour
     {
         card.ResolveNoTarget(activePlayer);
 
+        activePlayer._Hand.Remove(card); // MOVED: must happen before SpendMove()
+        activePlayer._DiscardPile.Add(card); // MOVED
+
         GameState game = _GameTester.GetGame();
         game.AddMoves(card.GetBonusMoves());
         game.SpendMove();
 
         _GameTester.SyncViewToActivePlayer();
-
-        activePlayer._Hand.Remove(card);
-        activePlayer._DiscardPile.Add(card);
 
         _PendingCard = null;
         _GameTester.RefreshBoardsAndHand();

@@ -32,7 +32,10 @@ public class GameState
 
     public void SwitchActivePlayer()
     {
-        if(_ActivePlayer == PlayerColor.Red)
+        PlayerState endingPlayer = (_ActivePlayer == PlayerColor.Red) ? _PlayerRed : _PlayerBlue; // NEW: whoever's turn is ending draws back up before we hand control to the other player
+        endingPlayer.DrawUpToHandSize(5); // NEW
+
+        if (_ActivePlayer == PlayerColor.Red)
         {
             _ActivePlayer = PlayerColor.Blue;
         }

@@ -15,6 +15,9 @@ public class GameTester : MonoBehaviour
     private Vector2 _NearPos;
     private Vector2 _FarPos;
 
+    public RectTransform _RedPileGroup;  // NEW
+    public RectTransform _BluePileGroup; // NEW
+
     [SerializeField] private bool _AutoSwitchView = true;
 
     public void SyncViewToActivePlayer()
@@ -29,8 +32,8 @@ public class GameTester : MonoBehaviour
 
     void Awake()
     {
-        _RedBoardPanel = _RedBoardDisplay.GetComponent<RectTransform>(); 
-        _BlueBoardPanel = _BlueBoardDisplay.GetComponent<RectTransform>(); 
+        _RedBoardPanel = _RedBoardDisplay.GetComponent<RectTransform>();
+        _BlueBoardPanel = _BlueBoardDisplay.GetComponent<RectTransform>();
 
         Vector2 redPos = _RedBoardPanel.anchoredPosition;
         Vector2 bluePos = _BlueBoardPanel.anchoredPosition;
@@ -45,6 +48,7 @@ public class GameTester : MonoBehaviour
             _NearPos = bluePos;
             _FarPos = redPos;
         }
+
     }
 
     public void BeginMatch()
@@ -55,11 +59,8 @@ public class GameTester : MonoBehaviour
         Debug.Log("Red hand size " + _CurrentGame._PlayerRed._Hand.Count);
         Debug.Log("Blue hand size " + _CurrentGame._PlayerBlue._Hand.Count);
 
-        _RedBoardDisplay.ShowBoard(_CurrentGame._PlayerRed);
-        _BlueBoardDisplay.ShowBoard(_CurrentGame._PlayerBlue);
-
         _ViewingAs = PlayerColor.Red;
-        RefreshView();
+        RefreshView(); // CHANGED: RefreshView now draws both boards too (with correct rotation), so the separate ShowBoard calls that used to be here aren't needed
     }
 
     public void ToggleView()
@@ -72,21 +73,33 @@ public class GameTester : MonoBehaviour
         {
             _ViewingAs = PlayerColor.Red;
         }
-
         RefreshView();
     }
 
     private void RefreshView()
     {
-        if (_ViewingAs == PlayerColor.Red)
+        bool viewingRed = _ViewingAs == PlayerColor.Red;
+        _RedBoardDisplay.ShowBoard(_CurrentGame._PlayerRed, !viewingRed);
+        _BlueBoardDisplay.ShowBoard(_CurrentGame._PlayerBlue, viewingRed);
+        if (viewingRed)
         {
-            _HandDisplay.ShowHand(_CurrentGame._PlayerRed); 
+            _RedPileGroup.localEulerAngles = new Vector3(0, 0, 0f);
+            _BluePileGroup.localEulerAngles = new Vector3(0, 0, -180f);
+        }
+        else
+        {
+            _RedPileGroup.localEulerAngles = new Vector3(0, 0, -180f);
+            _BluePileGroup.localEulerAngles = new Vector3(0, 0, 0f);
+        }
+        if (viewingRed)
+        {
+            _HandDisplay.ShowHand(_CurrentGame._PlayerRed);
             _RedBoardPanel.anchoredPosition = _NearPos;
             _BlueBoardPanel.anchoredPosition = _FarPos;
         }
         else
         {
-            _HandDisplay.ShowHand(_CurrentGame._PlayerBlue); 
+            _HandDisplay.ShowHand(_CurrentGame._PlayerBlue);
             _BlueBoardPanel.anchoredPosition = _NearPos;
             _RedBoardPanel.anchoredPosition = _FarPos;
         }
@@ -99,8 +112,6 @@ public class GameTester : MonoBehaviour
 
     public void RefreshBoardsAndHand()
     {
-        _RedBoardDisplay.ShowBoard(_CurrentGame._PlayerRed);
-        _BlueBoardDisplay.ShowBoard(_CurrentGame._PlayerBlue);
-        RefreshView();
+        RefreshView(); // CHANGED: RefreshView already redraws both boards and the hand together now
     }
 }
