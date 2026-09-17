@@ -86,4 +86,16 @@ public class HandDisplay : MonoBehaviour
             display.GetComponent<CardHoverEffect>().Unpin();
         }
     }
+
+    public void UnpinCard(Card card) // NEW: un-highlight a single card without touching any other pinned/selected cards - used to toggle one Cleanse selection off
+    {
+        foreach (CardDisplay display in _CurrentDisplays)
+        {
+            if (display._RepresentedCard == card)
+            {
+                display.GetComponent<CardHoverEffect>().Unpin();
+                return;
+            }
+        }
+    }
 }

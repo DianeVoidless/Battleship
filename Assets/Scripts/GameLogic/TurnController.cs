@@ -8,10 +8,24 @@ public class TurnController : MonoBehaviour
     public HandDisplay _HandDisplay;
 
     private Card _PendingCard;
+    private System.Collections.Generic.List<Card> _SelectedHandCards = new System.Collections.Generic.List<Card>(); // NEW: which hand cards the player has picked so far for a Cleanse-style multi-select
 
     void Awake()
     {
         _Instance = this;
+    }
+
+    private void CancelPendingCard() // NEW: shared cleanup for whenever a pending card selection is abandoned (clicking elsewhere, clicking a different card)
+    {
+        if (_PendingCard != null && _PendingCard.GetTargetMode() == CardTargetMode.HandMultiSelect && _PendingCard is UtilityCard utilityCard)
+        {
+            utilityCard.ChooseBranch(CardBranch.NotChosen); // NEW: otherwise this exact card instance gets stuck in Cleanse mode forever
+        }
+        _SelectedHandCards.Clear(); // NEW
+        _HandDisplay.UnpinAllCards();
+        _HandProximityZone.ReleaseForceLowerHand();
+        _HandProximityZone.UnpinHand(); // NEW: release the whole-hand-raised state a Cleanse selection may have set
+        _PendingCard = null;
     }
 
     public void OnCardClicked(CardDisplay display, Card card)
@@ -25,11 +39,36 @@ public class TurnController : MonoBehaviour
             return;
         }
 
-        if (_PendingCard != null && card != _PendingCard) 
+        if (_PendingCard != null && _PendingCard.GetTargetMode() == CardTargetMode.HandMultiSelect) // NEW: mid-Cleanse - clicking hand cards toggles selection; confirming happens by clicking the draw pile instead
         {
-            _HandDisplay.UnpinAllCards();
-            _HandProximityZone.ReleaseForceLowerHand();
-            _PendingCard = null;
+            if (card == _PendingCard)
+            {
+                Debug.Log("Click your draw pile to confirm the cleanse");
+                return;
+            }
+
+            if (!_PendingCard.IsLegalHandCard(card))
+            {
+                Debug.Log("Ignored - that card can't be selected for this");
+                return;
+            }
+
+            if (_SelectedHandCards.Contains(card))
+            {
+                _SelectedHandCards.Remove(card);
+                _HandDisplay.UnpinCard(card);
+            }
+            else
+            {
+                _SelectedHandCards.Add(card);
+                _HandDisplay.PinCard(card);
+            }
+            return;
+        }
+
+        if (_PendingCard != null && card != _PendingCard)
+        {
+            CancelPendingCard(); // CHANGED: shared cleanup, so a mid-selection wildcard's branch also gets reset
         }
 
         CardTargetMode mode = card.GetTargetMode();
@@ -48,8 +87,49 @@ public class TurnController : MonoBehaviour
 
         _PendingCard = card;
         _HandProximityZone.ForceLowerHand();
-        _HandDisplay.PinCard(card); 
+        _HandDisplay.PinCard(card);
         Debug.Log("Selected " + card.GetType().Name + " - waiting for a " + mode + " target");
+    }
+
+    public void OnDrawPileClicked(PlayerColor owner) // NEW: clicking your own draw pile confirms a Cleanse selection in progress
+    {
+        if (_PendingCard == null || _PendingCard.GetTargetMode() != CardTargetMode.HandMultiSelect)
+        {
+            return; // not mid-Cleanse - clicking the draw pile does nothing right now
+        }
+
+        GameState game = _GameTester.GetGame();
+
+        if (owner != game._ActivePlayer)
+        {
+            Debug.Log("Ignored - that's not your draw pile");
+            return;
+        }
+
+        PlayerState activePlayer = (game._ActivePlayer == PlayerColor.Red) ? game._PlayerRed : game._PlayerBlue;
+        ConfirmHandMultiSelect((UtilityCard)_PendingCard, activePlayer);
+    }
+
+    private void ConfirmHandMultiSelect(UtilityCard card, PlayerState activePlayer) // NEW: player clicked their draw pile to confirm the Cleanse selection
+    {
+        card.ResolveHandSelection(activePlayer, _SelectedHandCards);
+
+        activePlayer._Hand.Remove(card);
+        activePlayer._DiscardPile.Add(card);
+
+        GameState game = _GameTester.GetGame();
+        game.AddMoves(card.GetBonusMoves());
+        card.OnDiscarded();
+        game.SpendMove();
+
+        _GameTester.SyncViewToActivePlayer();
+
+        _HandDisplay.UnpinAllCards();
+        _HandProximityZone.ReleaseForceLowerHand();
+        _HandProximityZone.UnpinHand(); // NEW: release the whole-hand-raised state Cleanse selection set
+        _SelectedHandCards.Clear();
+        _PendingCard = null;
+        _GameTester.RefreshBoardsAndHand();
     }
 
     public void OnCellClicked(CardDisplay display, GridCell cell)
@@ -116,9 +196,7 @@ public class TurnController : MonoBehaviour
             return;
         }
 
-        _HandDisplay.UnpinAllCards();
-        _HandProximityZone.ReleaseForceLowerHand();
-        _PendingCard = null;
+        CancelPendingCard(); // CHANGED: shared cleanup, so cancelling out of a Cleanse selection also resets its branch
 
         Debug.Log("Cancelled - clicked outside");
     }
@@ -136,9 +214,7 @@ public class TurnController : MonoBehaviour
 
         if (_PendingCard != null && card != _PendingCard)
         {
-            _HandDisplay.UnpinAllCards();
-            _HandProximityZone.ReleaseForceLowerHand();
-            _PendingCard = null;
+            CancelPendingCard(); // CHANGED: shared cleanup, so a mid-selection wildcard's branch also gets reset
         }
 
         CardBranch branch = GetBranchForZone(card._Type, isGatedZone);
@@ -159,17 +235,18 @@ public class TurnController : MonoBehaviour
             return;
         }
 
+        _PendingCard = card;
+        _HandDisplay.PinCard(card);
+
         if (mode == CardTargetMode.HandMultiSelect)
         {
-            Debug.Log("This card needs a feature we haven't built yet (" + mode + ")");
-            card.ChooseBranch(CardBranch.NotChosen); // NEW: undo the branch pick since Cleanse can't actually be played yet - otherwise this exact card is stuck forever, even on later clicks/turns
-            _PendingCard = null;
+            _SelectedHandCards.Clear(); // NEW: start a fresh selection for Cleanse
+            _HandProximityZone.PinHand(); // NEW: keep the whole hand raised while picking cards, instead of forcing it low like a board-target card would
+            Debug.Log("Select attack cards to cleanse, then click your draw pile to confirm");
             return;
         }
 
-        _PendingCard = card;
-        _HandProximityZone.ForceLowerHand();
-        _HandDisplay.PinCard(card);
+        _HandProximityZone.ForceLowerHand(); // MOVED: only board/cell-targeting branches should force the hand back down
         Debug.Log("Branch chosen - waiting for a " + mode + " target");
     }
 
