@@ -37,4 +37,9 @@ public class Card
     {
         //
     }
+
+    public virtual void OnDiscarded() // NEW: hook for cleanup when a card leaves the hand for the discard pile
+    {
+        //
+    }
 }
