@@ -59,7 +59,7 @@ public class GameTester : MonoBehaviour
         Debug.Log("Red hand size " + _CurrentGame._PlayerRed._Hand.Count);
         Debug.Log("Blue hand size " + _CurrentGame._PlayerBlue._Hand.Count);
 
-        _ViewingAs = PlayerColor.Red;
+        _ViewingAs = _CurrentGame._ActivePlayer; // CHANGED: start viewing whoever actually goes first, instead of always defaulting to Red
         RefreshView(); // CHANGED: RefreshView now draws both boards too (with correct rotation), so the separate ShowBoard calls that used to be here aren't needed
     }
 

@@ -34,4 +34,29 @@ public class PlayerState
             _Hand.Add(drawnCard);
         }
     }
+
+    public bool HasActiveShip(ShipType type) // CHANGED: a ship's passive only kicks in once it's actually been discovered - matches how "damaged" status already works elsewhere in your game
+    {
+        foreach (GridCell cell in _Grid)
+        {
+            if (cell._Ship == type && cell._Revealed && !cell.IsSunk())
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public List<GridCell> GetDamagedShipCells() // NEW: every one of this player's own ship cells that's taken at least one hit - same rule the Heal card branch already uses (IsLegalTarget)
+    {
+        List<GridCell> damaged = new List<GridCell>();
+        foreach (GridCell cell in _Grid)
+        {
+            if (cell._Revealed && cell._DamageInstances.Count > 0)
+            {
+                damaged.Add(cell);
+            }
+        }
+        return damaged;
+    }
 }
