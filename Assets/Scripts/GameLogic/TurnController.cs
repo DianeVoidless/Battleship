@@ -134,14 +134,30 @@ public class TurnController : MonoBehaviour
 
     public void OnCellClicked(CardDisplay display, GridCell cell)
     {
+        GameState game = _GameTester.GetGame(); // MOVED: needed up here now, for the Healer check below
+        PlayerState activePlayer = (game._ActivePlayer == PlayerColor.Red) ? game._PlayerRed : game._PlayerBlue; // MOVED
+
+        if (game._AwaitingHealerChoice) // NEW: the new active player's Healer needs a damaged ship picked before anything else can happen
+        {
+            bool isOwnDamagedCell = activePlayer._Grid.Contains(cell) && cell._Revealed && cell._DamageInstances.Count > 0;
+            if (!isOwnDamagedCell)
+            {
+                Debug.Log("Ignored - choose one of your own damaged ships to heal");
+                return;
+            }
+
+            cell.RemoveHighestDamage();
+            game._AwaitingHealerChoice = false;
+            _GameTester.RefreshBoardsAndHand();
+            return;
+        }
+
         if (_PendingCard == null)
         {
             Debug.Log("Ignored - select a hand card first");
             return;
         }
 
-        GameState game = _GameTester.GetGame();
-        PlayerState activePlayer = (game._ActivePlayer == PlayerColor.Red) ? game._PlayerRed : game._PlayerBlue;
         PlayerState opponent = (game._ActivePlayer == PlayerColor.Red) ? game._PlayerBlue : game._PlayerRed;
 
         CardTargetMode mode = _PendingCard.GetTargetMode();
@@ -173,7 +189,14 @@ public class TurnController : MonoBehaviour
             return;
         }
 
-        _PendingCard.Resolve(cell);
+        _PendingCard.Resolve(cell, activePlayer); // CHANGED: now passes the active player as owner
+
+        if (cell._Ship == ShipType.Carrier && cell._Revealed) // NEW: Carrier's hand-size bonus applies the instant it's revealed, not just at a turn boundary
+        {
+            PlayerState carrierOwner = isOwnCell ? activePlayer : opponent; // NEW: whoever actually owns this cell, not necessarily whoever just played the card
+            int handCap = carrierOwner.HasActiveShip(ShipType.Carrier) ? 7 : 5;
+            carrierOwner.DrawUpToHandSize(handCap);
+        }
 
         activePlayer._Hand.Remove(_PendingCard); // MOVED: must happen before SpendMove(), since that can trigger the end-of-turn draw-up-to-5 check
         activePlayer._DiscardPile.Add(_PendingCard); // MOVED

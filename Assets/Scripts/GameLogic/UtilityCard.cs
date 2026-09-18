@@ -100,13 +100,13 @@ public class UtilityCard : Card
         return 0; // Shield, Cleanse, or no branch chosen yet
     }
 
-    public override void Resolve(GridCell target)
+    public override void Resolve(GridCell target, PlayerState owner) // CHANGED: signature now matches Card's new owner parameter
     {
         if (_Type == UtilityType.Shield)
         {
             target.AddShield();
         }
-        else if (_ChosenBranch == CardBranch.Heal) // NEW
+        else if (_ChosenBranch == CardBranch.Heal)
         {
             target.RemoveHighestDamage();
         }

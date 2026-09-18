@@ -23,11 +23,6 @@ public class Card
         return 0;
     }
 
-    public virtual void Resolve(GridCell target)
-    {
-        //
-    }
-
     public virtual void ResolveNoTarget(PlayerState owner) // NEW: for cards that need no cell/hand target at all (Draw 3, Extra Play)
     {
         //
@@ -39,6 +34,11 @@ public class Card
     }
 
     public virtual void OnDiscarded() // NEW: hook for cleanup when a card leaves the hand for the discard pile
+    {
+        //
+    }
+
+    public virtual void Resolve(GridCell target, PlayerState owner) // CHANGED: added owner, so cards can react to who played them (Cruiser/Destroyer passives need this)
     {
         //
     }
