@@ -7,6 +7,7 @@ public class PlayerState
     public List<Card> _DrawPile = new List<Card>();
     public List<Card> _DiscardPile = new List<Card>();
     public List<GridCell> _Grid = new List<GridCell>();
+    public int _CapturedShipCount; // NEW: how many enemy ships this player has sunk/captured this match
 
     public PlayerState(PlayerColor color)
     {
@@ -47,12 +48,12 @@ public class PlayerState
         return false;
     }
 
-    public List<GridCell> GetDamagedShipCells() // NEW: every one of this player's own ship cells that's taken at least one hit - same rule the Heal card branch already uses (IsLegalTarget)
+    public List<GridCell> GetDamagedShipCells() // CHANGED: sunk ships no longer count as "damaged" - they're gone, not healable
     {
         List<GridCell> damaged = new List<GridCell>();
         foreach (GridCell cell in _Grid)
         {
-            if (cell._Revealed && cell._DamageInstances.Count > 0)
+            if (cell._Revealed && cell._DamageInstances.Count > 0 && !cell.IsSunk()) // NEW: exclude sunk cells
             {
                 damaged.Add(cell);
             }
