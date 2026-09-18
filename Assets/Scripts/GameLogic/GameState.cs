@@ -63,9 +63,29 @@ public class GameState
 
         List<GridCell> damaged = player.GetDamagedShipCells();
 
+        const int columns = 4; // TEMP: matches BoardDisplay's Fixed Column Count, just for this debug print
+        foreach (GridCell c in damaged) // TEMP: full diagnostic dump for the healer HP mismatch
+        {
+            int index = player._Grid.IndexOf(c);
+            int row = index / columns;
+            int col = index % columns;
+            int maxHP = ShipStats.GetMaxHP(c._Ship);
+            string hits = string.Join(", ", c._DamageInstances); // every individual damage amount this cell has ever taken
+
+            Debug.Log("Healer sees: " + c._Ship
+                + " at (row " + row + ", col " + col + ")"
+                + " - full HP " + maxHP
+                + " - damage instances taken: [" + hits + "]"
+                + " - total damage " + c.GetTotalDamage()
+                + " - remaining " + c.GetRemainingHP());
+        }
+
         if (damaged.Count == 1)
         {
-            damaged[0].RemoveHighestDamage(); // only one possible choice, so it just happens
+            GridCell healedCell = damaged[0];
+            Debug.Log("Healer auto-healing " + healedCell._Ship + " - BEFORE: remaining " + healedCell.GetRemainingHP() + ", instances [" + string.Join(", ", healedCell._DamageInstances) + "]");
+            healedCell.RemoveHighestDamage(); // only one possible choice, so it just happens
+            Debug.Log("Healer auto-healing " + healedCell._Ship + " - AFTER: remaining " + healedCell.GetRemainingHP() + ", instances [" + string.Join(", ", healedCell._DamageInstances) + "]");
         }
         else if (damaged.Count > 1)
         {

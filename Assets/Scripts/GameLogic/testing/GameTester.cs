@@ -17,6 +17,8 @@ public class GameTester : MonoBehaviour
 
     public RectTransform _RedPileGroup;  // NEW
     public RectTransform _BluePileGroup; // NEW
+    public CapturedShipsPileDisplay _RedCapturedPile; // NEW
+    public CapturedShipsPileDisplay _BlueCapturedPile; // NEW
 
     [SerializeField] private bool _AutoSwitchView = true;
 
@@ -103,6 +105,8 @@ public class GameTester : MonoBehaviour
             _BlueBoardPanel.anchoredPosition = _NearPos;
             _RedBoardPanel.anchoredPosition = _FarPos;
         }
+        _RedCapturedPile.Refresh(_CurrentGame._PlayerRed._CapturedShipCount); // NEW
+        _BlueCapturedPile.Refresh(_CurrentGame._PlayerBlue._CapturedShipCount); // NEW
     }
 
     public GameState GetGame()

@@ -1943,7 +1943,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1185821707
 RectTransform:
   m_ObjectHideFlags: 0
@@ -2934,6 +2934,8 @@ MonoBehaviour:
   _HandDisplay: {fileID: 780138322}
   _RedPileGroup: {fileID: 1840155769}
   _BluePileGroup: {fileID: 1850164728}
+  _RedCapturedPile: {fileID: 1976589601}
+  _BlueCapturedPile: {fileID: 1683634300}
   _AutoSwitchView: 1
 --- !u!4 &1538662978
 Transform:
@@ -3253,6 +3255,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1683634299}
+  - component: {fileID: 1683634300}
   m_Layer: 5
   m_Name: Captured
   m_TagString: Untagged
@@ -3284,6 +3287,24 @@ RectTransform:
   m_AnchoredPosition: {x: 700, y: -100}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1683634300
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1683634298}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d44330ff69d29f340a76f0ef3bc082d0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CapturedShipsPileDisplay
+  _ShipSlots:
+  - {fileID: 180622451}
+  - {fileID: 1543378738}
+  - {fileID: 1927694272}
+  - {fileID: 973536019}
+  - {fileID: 2100665293}
 --- !u!1 &1799091080
 GameObject:
   m_ObjectHideFlags: 0
@@ -4043,6 +4064,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1976589600}
+  - component: {fileID: 1976589601}
   m_Layer: 5
   m_Name: Captured
   m_TagString: Untagged
@@ -4074,6 +4096,24 @@ RectTransform:
   m_AnchoredPosition: {x: 700, y: -100}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1976589601
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1976589599}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d44330ff69d29f340a76f0ef3bc082d0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CapturedShipsPileDisplay
+  _ShipSlots:
+  - {fileID: 582603514}
+  - {fileID: 383170827}
+  - {fileID: 1114252364}
+  - {fileID: 1357245817}
+  - {fileID: 1267722889}
 --- !u!1 &2077007213
 GameObject:
   m_ObjectHideFlags: 0

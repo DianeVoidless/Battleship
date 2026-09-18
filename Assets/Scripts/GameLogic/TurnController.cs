@@ -189,7 +189,14 @@ public class TurnController : MonoBehaviour
             return;
         }
 
+        bool wasSunkBefore = cell.IsSunk(); // NEW: snapshot so we can tell the exact moment a ship becomes captured
+
         _PendingCard.Resolve(cell, activePlayer); // CHANGED: now passes the active player as owner
+
+        if (!wasSunkBefore && cell.IsSunk()) // NEW: this attack just brought the ship to 0 HP - credit whoever landed the hit
+        {
+            activePlayer._CapturedShipCount++;
+        }
 
         if (cell._Ship == ShipType.Carrier && cell._Revealed) // NEW: Carrier's hand-size bonus applies the instant it's revealed, not just at a turn boundary
         {
