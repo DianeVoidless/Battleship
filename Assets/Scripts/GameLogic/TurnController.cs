@@ -198,6 +198,21 @@ public class TurnController : MonoBehaviour
             activePlayer._CapturedShipCount++;
         }
 
+        if (opponent.AreAllShipsSunk()) // NEW: every enemy ship is gone - the active player just won, stop the match right here
+        {
+            game._IsGameOver = true;
+            game._WinningPlayer = activePlayer._Color;
+
+            activePlayer._Hand.Remove(_PendingCard);
+            activePlayer._DiscardPile.Add(_PendingCard);
+            _PendingCard.OnDiscarded();
+
+            _PendingCard = null;
+            _HandProximityZone.ReleaseForceLowerHand();
+            _GameTester.RefreshBoardsAndHand();
+            return; // NEW: no more turn processing once the match is decided - don't switch the active player or trigger the next turn's Healer
+        }
+
         if (cell._Ship == ShipType.Carrier && cell._Revealed) // NEW: Carrier's hand-size bonus applies the instant it's revealed, not just at a turn boundary
         {
             PlayerState carrierOwner = isOwnCell ? activePlayer : opponent; // NEW: whoever actually owns this cell, not necessarily whoever just played the card

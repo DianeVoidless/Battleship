@@ -19,7 +19,11 @@ public class GameTester : MonoBehaviour
     public RectTransform _BluePileGroup; // NEW
     public CapturedShipsPileDisplay _RedCapturedPile; // NEW
     public CapturedShipsPileDisplay _BlueCapturedPile; // NEW
-
+    public GameObject _HealerChoicePrompt; // NEW: the "Select a Ship to heal" banner, shown while _AwaitingHealerChoice is true
+    public GameObject _WinScreen;  // NEW
+    public GameObject _LoseScreen; // NEW
+    public GameObject _TopMenuZoneObject; // CHANGED: plain GameObject reference instead of the component type directly, to work around the Inspector refusing the typed field
+    private TopMenuProximityZone _TopMenuZone; // NEW: the actual component, fetched in code instead of dragged in the Inspector
     [SerializeField] private bool _AutoSwitchView = true;
 
     public void SyncViewToActivePlayer()
@@ -36,6 +40,10 @@ public class GameTester : MonoBehaviour
     {
         _RedBoardPanel = _RedBoardDisplay.GetComponent<RectTransform>();
         _BlueBoardPanel = _BlueBoardDisplay.GetComponent<RectTransform>();
+
+        Debug.Log("Awake running - _TopMenuZoneObject is " + (_TopMenuZoneObject == null ? "NULL" : _TopMenuZoneObject.name)); // TEMP
+        _TopMenuZone = _TopMenuZoneObject.GetComponent<TopMenuProximityZone>(); // NEW
+        Debug.Log("Awake running - _TopMenuZone is " + (_TopMenuZone == null ? "NULL" : "assigned OK")); // TEMP
 
         Vector2 redPos = _RedBoardPanel.anchoredPosition;
         Vector2 bluePos = _BlueBoardPanel.anchoredPosition;
@@ -107,6 +115,21 @@ public class GameTester : MonoBehaviour
         }
         _RedCapturedPile.Refresh(_CurrentGame._PlayerRed._CapturedShipCount); // NEW
         _BlueCapturedPile.Refresh(_CurrentGame._PlayerBlue._CapturedShipCount); // NEW
+        _HealerChoicePrompt.SetActive(_CurrentGame._AwaitingHealerChoice); // NEW: shows/hides the banner based on whether the active player's Healer is waiting for a pick
+
+        if (_CurrentGame._IsGameOver)
+        {
+            bool viewingWinner = _ViewingAs == _CurrentGame._WinningPlayer;
+            _WinScreen.SetActive(viewingWinner);
+            _LoseScreen.SetActive(!viewingWinner);
+            _TopMenuZone.DisableMenu(); // NEW
+        }
+        else
+        {
+            _WinScreen.SetActive(false);
+            _LoseScreen.SetActive(false);
+            _TopMenuZone.EnableMenu(); // NEW
+        }
     }
 
     public GameState GetGame()
