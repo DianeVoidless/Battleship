@@ -1,4 +1,6 @@
 using UnityEngine;
+using UnityEngine.EventSystems; // TEMP: for the raycast diagnostic below
+using System.Collections.Generic; // TEMP: for the raycast diagnostic below
 
 public class GameTester : MonoBehaviour
 {
@@ -24,6 +26,10 @@ public class GameTester : MonoBehaviour
     public GameObject _LoseScreen; // NEW
     public GameObject _TopMenuZoneObject; // CHANGED: plain GameObject reference instead of the component type directly, to work around the Inspector refusing the typed field
     private TopMenuProximityZone _TopMenuZone; // NEW: the actual component, fetched in code instead of dragged in the Inspector
+    private bool _RematchPending; // NEW: true while waiting on the opposing player to confirm a rematch
+    private PlayerColor _RematchRequestedBy; // NEW: who clicked Play Again
+    public GameObject _RematchWaitScreen;    // NEW: "Awaiting opponent confirmation..." - shown to whoever requested it
+    public GameObject _RematchConfirmPrompt; // NEW: "Your opponent is requesting a rematch" - shown to the other player
     [SerializeField] private bool _AutoSwitchView = true;
 
     public void SyncViewToActivePlayer()
@@ -41,9 +47,7 @@ public class GameTester : MonoBehaviour
         _RedBoardPanel = _RedBoardDisplay.GetComponent<RectTransform>();
         _BlueBoardPanel = _BlueBoardDisplay.GetComponent<RectTransform>();
 
-        Debug.Log("Awake running - _TopMenuZoneObject is " + (_TopMenuZoneObject == null ? "NULL" : _TopMenuZoneObject.name)); // TEMP
         _TopMenuZone = _TopMenuZoneObject.GetComponent<TopMenuProximityZone>(); // NEW
-        Debug.Log("Awake running - _TopMenuZone is " + (_TopMenuZone == null ? "NULL" : "assigned OK")); // TEMP
 
         Vector2 redPos = _RedBoardPanel.anchoredPosition;
         Vector2 bluePos = _BlueBoardPanel.anchoredPosition;
@@ -117,17 +121,30 @@ public class GameTester : MonoBehaviour
         _BlueCapturedPile.Refresh(_CurrentGame._PlayerBlue._CapturedShipCount); // NEW
         _HealerChoicePrompt.SetActive(_CurrentGame._AwaitingHealerChoice); // NEW: shows/hides the banner based on whether the active player's Healer is waiting for a pick
 
-        if (_CurrentGame._IsGameOver)
+        if (_RematchPending) // CHANGED: checked first now, independent of _IsGameOver - a rematch can be requested mid-match (e.g. from the top menu's Restart Match button), not just from the Win/Lose screens
+        {
+            bool viewingRequester = _ViewingAs == _RematchRequestedBy;
+            _WinScreen.SetActive(false);
+            _LoseScreen.SetActive(false);
+            _RematchWaitScreen.SetActive(viewingRequester);
+            _RematchConfirmPrompt.SetActive(!viewingRequester);
+            _TopMenuZone.DisableMenu();
+        }
+        else if (_CurrentGame._IsGameOver)
         {
             bool viewingWinner = _ViewingAs == _CurrentGame._WinningPlayer;
             _WinScreen.SetActive(viewingWinner);
             _LoseScreen.SetActive(!viewingWinner);
+            _RematchWaitScreen.SetActive(false);
+            _RematchConfirmPrompt.SetActive(false);
             _TopMenuZone.DisableMenu(); // NEW
         }
         else
         {
             _WinScreen.SetActive(false);
             _LoseScreen.SetActive(false);
+            _RematchWaitScreen.SetActive(false); // NEW
+            _RematchConfirmPrompt.SetActive(false); // NEW
             _TopMenuZone.EnableMenu(); // NEW
         }
     }
@@ -137,8 +154,46 @@ public class GameTester : MonoBehaviour
         return _CurrentGame;
     }
 
+    void Update() // TEMP: logs every UI element under the cursor, topmost first, whenever you left-click - to find what's stealing clicks from the rematch buttons
+    {
+        if (Input.GetMouseButtonDown(0))
+        {
+            PointerEventData ped = new PointerEventData(EventSystem.current) { position = Input.mousePosition };
+            List<RaycastResult> results = new List<RaycastResult>();
+            EventSystem.current.RaycastAll(ped, results);
+            Debug.Log("--- click raycast hits (topmost first) ---");
+            foreach (RaycastResult r in results)
+            {
+                Debug.Log(r.gameObject.name + " | sortingOrder=" + r.sortingOrder + " | sortingLayer=" + r.sortingLayer + " | depth=" + r.depth);
+            }
+        }
+    }
+
     public void RefreshBoardsAndHand()
     {
         RefreshView(); // CHANGED: RefreshView already redraws both boards and the hand together now
+    }
+
+    public void RequestRematch() // NEW: called by "Play Again" on either the Win or Lose screen
+    {
+        _RematchPending = true;
+        _RematchRequestedBy = _ViewingAs;
+        _ViewingAs = (_ViewingAs == PlayerColor.Red) ? PlayerColor.Blue : PlayerColor.Red; // pass the screen to the other player so they see the confirmation prompt
+        RefreshView();
+    }
+
+    public void ConfirmRematch() // NEW: opponent agreed - start a fresh match
+    {
+        Debug.Log("ConfirmRematch called"); // TEMP
+        _RematchPending = false;
+        BeginMatch();
+    }
+
+    public void DeclineRematch() // NEW: opponent said no - go back to the original result
+    {
+        Debug.Log("DeclineRematch called"); // TEMP
+        _RematchPending = false;
+        _ViewingAs = _RematchRequestedBy;
+        RefreshView();
     }
 }
