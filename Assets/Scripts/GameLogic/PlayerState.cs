@@ -60,4 +60,16 @@ public class PlayerState
         }
         return damaged;
     }
+
+    public bool AreAllShipsSunk() // NEW: true once every one of this player's ship cells has been sunk
+    {
+        foreach (GridCell cell in _Grid)
+        {
+            if (cell._Ship != ShipType.None && !cell.IsSunk())
+            {
+                return false;
+            }
+        }
+        return true;
+    }
 }

@@ -32,7 +32,8 @@ public class GameState
     }
 
     public bool _AwaitingHealerChoice; // NEW: true when the player whose turn just started has a Healer and more than one damaged ship, and must click one to heal
-
+    public bool _IsGameOver;          // NEW: true once one side has lost every ship
+    public PlayerColor _WinningPlayer; // NEW: only meaningful once _IsGameOver is true
     public void SwitchActivePlayer()
     {
         PlayerState endingPlayer = (_ActivePlayer == PlayerColor.Red) ? _PlayerRed : _PlayerBlue;
