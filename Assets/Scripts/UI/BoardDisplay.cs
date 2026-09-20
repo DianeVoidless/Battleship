@@ -41,6 +41,12 @@ public class BoardDisplay : MonoBehaviour
     [Header("NEW: draw pile - after the 5 hand cards are dealt, one last face-down card slides from the hand deck into THIS board's own real DrawPile object (the static, pre-placed card art already in the scene) - drag that board's own DrawPile RectTransform here (the Red one for RedBoardPanel, the Blue one for BlueBoardPanel)")]
     public RectTransform _DrawPileRect;
 
+    [Header("NEW: enemy board reveal flip - plays on a board cell the instant an attack card reveals it for the first time")]
+    public float _RevealFlipDuration = 0.25f; // total time for the flip (half shrinking down to edge-on, half growing back out) - the sprite swap happens right at the midpoint, while the card is edge-on and invisible
+
+    [Header("NEW: discard pile reshuffle - when the draw pile empties, the WHOLE discard pile visibly gathers at the center of this board (same spot the original deck slide-in used), riffle-shuffles just like the very first deal, then slides into the draw pile spot to become the new draw pile")]
+    public float _ReshuffleTravelDuration = 0.3f; // how long each of the two travel legs takes (discard spot -> center, then center -> draw pile spot)
+
     public event System.Action<PlayerState> OnHandRevealed; // NEW: fired once, right when the viewed player's 5-card hand-deal flourish finishes
     public event System.Action<PlayerState> OnDrawPileRevealed; // NEW: fired once, right when the leftover hand-deck card finishes sliding into the draw pile spot - GameTester listens for this and activates the REAL, pre-placed DrawPile art at that moment
 
@@ -472,6 +478,8 @@ public class BoardDisplay : MonoBehaviour
             Sprite sprite = _ArtDatabase.GetShipSprite(cell, player._Color);
             display.SetSprite(sprite);
             display._RepresentedCell = cell;
+            display._Owner = player; // NEW: BoardCardHoverEffect needs to know which player this cell belongs to, to tell an enemy cell from an own cell
+            cardObject.AddComponent<BoardCardHoverEffect>(); // NEW: hover highlight for this board cell
 
             Sprite shieldSprite = _ArtDatabase.GetShieldSprite(cell, player._Color);
             display.SetShieldOverlay(shieldSprite);
@@ -655,9 +663,124 @@ public class BoardDisplay : MonoBehaviour
             Sprite sprite = _ArtDatabase.GetShipSprite(cell, player._Color);
             display.SetSprite(sprite);
             display._RepresentedCell = cell;
+            display._Owner = player; // NEW: BoardCardHoverEffect needs to know which player this cell belongs to, to tell an enemy cell from an own cell
+            cardObject.AddComponent<BoardCardHoverEffect>(); // NEW: hover highlight for this board cell
 
             Sprite shieldSprite = _ArtDatabase.GetShieldSprite(cell, player._Color);
             display.SetShieldOverlay(shieldSprite);
+        }
+    }
+
+    public IEnumerator PlayCellRevealFlip(GridCell cell, PlayerState owner) // NEW: finds the already-existing CardDisplay for this cell (the same one DealFromDeck/ShowBoard placed), flips it edge-on and back while swapping in the now-revealed sprite at the midpoint - reuses the existing GameObject directly, so no grid-position math is needed, and the normal ShowBoard() refresh that follows will destroy/recreate it identically once this finishes
+    {
+        CardDisplay target = null;
+        foreach (Transform child in transform)
+        {
+            CardDisplay display = child.GetComponent<CardDisplay>();
+            if (display != null && display._RepresentedCell == cell)
+            {
+                target = display;
+                break;
+            }
+        }
+
+        if (target == null)
+        {
+            yield break; // safety - the board may already have been refreshed/cleared by the time this runs
+        }
+
+        RectTransform cardRect = target.GetComponent<RectTransform>();
+        float halfDuration = _RevealFlipDuration / 2f;
+
+        yield return ScaleCardX(cardRect, 1f, 0f, halfDuration); // shrink to edge-on (still showing the old face, but invisibly thin)
+
+        if (cardRect == null)
+        {
+            yield break;
+        }
+
+        Sprite revealedSprite = _ArtDatabase.GetShipSprite(cell, owner._Color);
+        target.SetSprite(revealedSprite);
+        Sprite shieldSprite = _ArtDatabase.GetShieldSprite(cell, owner._Color);
+        target.SetShieldOverlay(shieldSprite);
+
+        yield return ScaleCardX(cardRect, 0f, 1f, halfDuration); // grow back out, now showing the revealed face
+    }
+
+    private IEnumerator ScaleCardX(RectTransform rect, float from, float to, float duration) // NEW: shared helper - eases a card's local X scale between from and to, used for the reveal flip's two halves
+    {
+        float t = 0f;
+        while (t < duration)
+        {
+            if (rect == null)
+            {
+                yield break;
+            }
+            t += Time.deltaTime;
+            float p = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / duration));
+            float x = Mathf.LerpUnclamped(from, to, p);
+            rect.localScale = new Vector3(x, 1f, 1f);
+            yield return null;
+        }
+        if (rect != null)
+        {
+            rect.localScale = new Vector3(to, 1f, 1f);
+        }
+    }
+
+    public IEnumerator PlayReshuffleFromDiscard(RectTransform discardRect, PlayerState player) // NEW: called right after the real discard pile art has already been hidden (its job is done - the discard pile is genuinely empty now) - spawns a flourish card at that same spot, slides it to this board's own center (the exact spot the original deck slide-in/shuffle used), riffle-shuffles it there just like the very first deal, then slides it into the draw pile spot and disappears, leaving the already-present, never-hidden real DrawPile art as the (now replenished) pile
+    {
+        if (discardRect == null || _DrawPileRect == null)
+        {
+            yield break; // safety - nothing to animate without both ends of the trip
+        }
+
+        Vector2 discardLocalPos = GetLocalCenterOf(discardRect); // where the real discard pile was sitting, converted into this board panel's own local space
+        Vector2 centerPos = Vector2.zero; // this board panel's own center - same spot SlideDeckIn/SlideHandDeckIn already shuffle at
+        Vector2 drawPileLocalPos = GetLocalCenterOf(_DrawPileRect);
+
+        GameObject cardObject = Instantiate(_CardDisplayPrefab, transform);
+        cardObject.name = "ReshuffleCard";
+        CardDisplay display = cardObject.GetComponent<CardDisplay>();
+        display.SetSprite(_HandDeckBackSprite);
+        display.SetShieldOverlay(null);
+
+        LayoutElement layoutElement = cardObject.GetComponent<LayoutElement>();
+        if (layoutElement == null)
+        {
+            layoutElement = cardObject.AddComponent<LayoutElement>();
+        }
+        layoutElement.ignoreLayout = true;
+
+        RectTransform cardRect = cardObject.GetComponent<RectTransform>();
+        cardRect.anchorMin = new Vector2(0.5f, 0.5f);
+        cardRect.anchorMax = new Vector2(0.5f, 0.5f);
+        cardRect.pivot = new Vector2(0.5f, 0.5f);
+        cardRect.sizeDelta = _CardDisplayPrefab.GetComponent<RectTransform>().sizeDelta;
+        cardRect.anchoredPosition = discardLocalPos;
+        cardRect.SetAsLastSibling(); // render on top of the board's own dealt grid cards during the whole trip
+
+        AudioManager.Instance?.PlaySlideSFX();
+        yield return SlideRect(cardRect, discardLocalPos, centerPos, _ReshuffleTravelDuration); // whole discard pile gathers at the table's center
+
+        if (cardRect == null)
+        {
+            yield break;
+        }
+
+        yield return RiffleShuffleDeck(centerPos, cardRect.sizeDelta, _HandDeckBackSprite); // same riffle-shuffle look as the very first deal
+
+        if (cardRect == null)
+        {
+            yield break;
+        }
+
+        AudioManager.Instance?.PlaySlideSFX();
+        yield return SlideRect(cardRect, centerPos, drawPileLocalPos, _ReshuffleTravelDuration); // slides into the draw pile spot and settles in as the new pile
+
+        if (cardObject != null)
+        {
+            Destroy(cardObject); // the real DrawPile art was never hidden - it's already sitting right there to take over
         }
     }
 

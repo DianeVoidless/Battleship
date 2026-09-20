@@ -14,9 +14,12 @@ public class PlayerState
         _Color = color;
     }
 
+    public bool _LastDrawReshuffled; // NEW: set true whenever the most recent DrawUpToHandSize call had to reshuffle the discard pile back into the draw pile - read by callers right after the call so they can play a "the discard pile just merged into the draw pile" visual before animating the draw itself
+
     public List<Card> DrawUpToHandSize(int targetSize, bool playSound = true) // CHANGED: now returns the cards that were actually newly drawn (so callers like the turn-end draw-up animation know exactly what to animate), and takes playSound so callers that animate this draw themselves - one shove sound per card as it visually arrives - can skip this method's own single batch sound instead of layering both
     {
         List<Card> drawnCards = new List<Card>(); // CHANGED: was just a bool - now the actual cards
+        _LastDrawReshuffled = false; // NEW: reset at the start of every call - only this call's own reshuffle (if any) should be reported
 
         while (_Hand.Count < targetSize)
         {
@@ -30,6 +33,7 @@ public class PlayerState
                 _DrawPile.AddRange(_DiscardPile);
                 _DiscardPile.Clear();
                 GameSetup.ShuffleDeck(_DrawPile);
+                _LastDrawReshuffled = true; // NEW
             }
 
             Card drawnCard = _DrawPile[0];
