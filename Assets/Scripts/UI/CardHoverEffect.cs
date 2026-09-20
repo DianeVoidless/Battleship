@@ -24,6 +24,8 @@ public class CardHoverEffect : MonoBehaviour, IPointerEnterHandler, IPointerExit
         }
 
         _RectTransform.anchoredPosition = _RestPosition + new Vector2(0f, _HoverLift);
+
+        AudioManager.Instance?.PlaySlideSFX(); // NEW: light hover feedback when a hand card lifts
     }
 
     public void OnPointerExit(PointerEventData eventData)

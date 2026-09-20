@@ -29,7 +29,7 @@ public class GridCell
             else
             {
                 amount -= _ShieldHP;
-                _ShieldHP = 0; 
+                _ShieldHP = 0;
             }
         }
         _DamageInstances.Add(amount);
@@ -37,7 +37,7 @@ public class GridCell
 
     public void AddShield()
     {
-        _ShieldHP += 2; 
+        _ShieldHP += 2;
     }
 
     public void RemoveHighestDamage()

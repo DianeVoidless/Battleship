@@ -16,6 +16,8 @@ public class PlayerState
 
     public void DrawUpToHandSize(int targetSize) // NEW: draws from the draw pile until the hand reaches targetSize, reshuffling the discard pile into the draw pile if it runs out
     {
+        bool drewAnyCards = false; // NEW
+
         while (_Hand.Count < targetSize)
         {
             if (_DrawPile.Count == 0)
@@ -33,6 +35,12 @@ public class PlayerState
             Card drawnCard = _DrawPile[0];
             _DrawPile.RemoveAt(0);
             _Hand.Add(drawnCard);
+            drewAnyCards = true; // NEW
+        }
+
+        if (drewAnyCards) // NEW: one sound for the whole batch, not one per card, so a multi-card draw doesn't stutter
+        {
+            AudioManager.Instance?.PlayShoveSFX();
         }
     }
 

@@ -35,7 +35,6 @@ public class TurnController : MonoBehaviour
 
         if (!activePlayer._Hand.Contains(card))
         {
-            Debug.Log("Ignored - not your card to play right now");
             return;
         }
 
@@ -43,13 +42,11 @@ public class TurnController : MonoBehaviour
         {
             if (card == _PendingCard)
             {
-                Debug.Log("Click your draw pile to confirm the cleanse");
                 return;
             }
 
             if (!_PendingCard.IsLegalHandCard(card))
             {
-                Debug.Log("Ignored - that card can't be selected for this");
                 return;
             }
 
@@ -75,20 +72,17 @@ public class TurnController : MonoBehaviour
 
         if (mode == CardTargetMode.HandMultiSelect)
         {
-            Debug.Log("This card needs a feature we haven't built yet (" + mode + ")");
             return;
         }
 
         if (mode == CardTargetMode.BranchChoice)
         {
-            Debug.Log("Choose one of the two options shown on the card");
             return;
         }
 
         _PendingCard = card;
         _HandProximityZone.ForceLowerHand();
         _HandDisplay.PinCard(card);
-        Debug.Log("Selected " + card.GetType().Name + " - waiting for a " + mode + " target");
     }
 
     public void OnDrawPileClicked(PlayerColor owner) // NEW: clicking your own draw pile confirms a Cleanse selection in progress
@@ -102,7 +96,6 @@ public class TurnController : MonoBehaviour
 
         if (owner != game._ActivePlayer)
         {
-            Debug.Log("Ignored - that's not your draw pile");
             return;
         }
 
@@ -142,7 +135,6 @@ public class TurnController : MonoBehaviour
             bool isOwnDamagedCell = activePlayer._Grid.Contains(cell) && cell._Revealed && cell._DamageInstances.Count > 0;
             if (!isOwnDamagedCell)
             {
-                Debug.Log("Ignored - choose one of your own damaged ships to heal");
                 return;
             }
 
@@ -154,7 +146,6 @@ public class TurnController : MonoBehaviour
 
         if (_PendingCard == null)
         {
-            Debug.Log("Ignored - select a hand card first");
             return;
         }
 
@@ -164,7 +155,6 @@ public class TurnController : MonoBehaviour
 
         if (mode == CardTargetMode.BranchChoice)
         {
-            Debug.Log("Ignored - choose a branch for this wildcard first");
             return;
         }
 
@@ -173,25 +163,23 @@ public class TurnController : MonoBehaviour
 
         if (mode == CardTargetMode.EnemyCell && !isEnemyCell)
         {
-            Debug.Log("Ignored - that's not an enemy cell");
             return;
         }
 
         if (mode == CardTargetMode.OwnCell && !isOwnCell)
         {
-            Debug.Log("Ignored - that's not your own cell");
             return;
         }
 
         if (!_PendingCard.IsLegalTarget(cell))
         {
-            Debug.Log("Ignored - illegal target for this card");
             return;
         }
 
         bool wasSunkBefore = cell.IsSunk(); // NEW: snapshot so we can tell the exact moment a ship becomes captured
 
         _PendingCard.Resolve(cell, activePlayer); // CHANGED: now passes the active player as owner
+        AudioManager.Instance?.PlayPlaceSFX(); // NEW: the card was just successfully committed to a board cell
 
         if (!wasSunkBefore && cell.IsSunk()) // NEW: this attack just brought the ship to 0 HP - credit whoever landed the hit
         {
@@ -242,8 +230,6 @@ public class TurnController : MonoBehaviour
         }
 
         CancelPendingCard(); // CHANGED: shared cleanup, so cancelling out of a Cleanse selection also resets its branch
-
-        Debug.Log("Cancelled - clicked outside");
     }
 
     public void OnWildcardBranchClicked(CardDisplay display, UtilityCard card, bool isGatedZone)
@@ -253,7 +239,6 @@ public class TurnController : MonoBehaviour
 
         if (!activePlayer._Hand.Contains(card))
         {
-            Debug.Log("Ignored - not your card to play right now");
             return;
         }
 
@@ -266,7 +251,6 @@ public class TurnController : MonoBehaviour
 
         if (isGatedZone && !card.IsBranchAvailable(branch, activePlayer))
         {
-            Debug.Log("Ignored - that branch isn't available right now");
             return;
         }
 
@@ -287,12 +271,10 @@ public class TurnController : MonoBehaviour
         {
             _SelectedHandCards.Clear(); // NEW: start a fresh selection for Cleanse
             _HandProximityZone.PinHand(); // NEW: keep the whole hand raised while picking cards, instead of forcing it low like a board-target card would
-            Debug.Log("Select attack cards to cleanse, then click your draw pile to confirm");
             return;
         }
 
         _HandProximityZone.ForceLowerHand(); // MOVED: only board/cell-targeting branches should force the hand back down
-        Debug.Log("Branch chosen - waiting for a " + mode + " target");
     }
 
     private CardBranch GetBranchForZone(UtilityType type, bool isGatedZone)

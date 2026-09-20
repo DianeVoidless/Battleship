@@ -1,6 +1,4 @@
 using UnityEngine;
-using UnityEngine.EventSystems; // TEMP: for the raycast diagnostic below
-using System.Collections.Generic; // TEMP: for the raycast diagnostic below
 
 public class GameTester : MonoBehaviour
 {
@@ -68,10 +66,6 @@ public class GameTester : MonoBehaviour
     public void BeginMatch()
     {
         _CurrentGame = GameSetup.StartNewGame();
-
-        Debug.Log("Starting player: " + _CurrentGame._ActivePlayer);
-        Debug.Log("Red hand size " + _CurrentGame._PlayerRed._Hand.Count);
-        Debug.Log("Blue hand size " + _CurrentGame._PlayerBlue._Hand.Count);
 
         _ViewingAs = _CurrentGame._ActivePlayer; // CHANGED: start viewing whoever actually goes first, instead of always defaulting to Red
         RefreshView(); // CHANGED: RefreshView now draws both boards too (with correct rotation), so the separate ShowBoard calls that used to be here aren't needed
@@ -154,21 +148,6 @@ public class GameTester : MonoBehaviour
         return _CurrentGame;
     }
 
-    void Update() // TEMP: logs every UI element under the cursor, topmost first, whenever you left-click - to find what's stealing clicks from the rematch buttons
-    {
-        if (Input.GetMouseButtonDown(0))
-        {
-            PointerEventData ped = new PointerEventData(EventSystem.current) { position = Input.mousePosition };
-            List<RaycastResult> results = new List<RaycastResult>();
-            EventSystem.current.RaycastAll(ped, results);
-            Debug.Log("--- click raycast hits (topmost first) ---");
-            foreach (RaycastResult r in results)
-            {
-                Debug.Log(r.gameObject.name + " | sortingOrder=" + r.sortingOrder + " | sortingLayer=" + r.sortingLayer + " | depth=" + r.depth);
-            }
-        }
-    }
-
     public void RefreshBoardsAndHand()
     {
         RefreshView(); // CHANGED: RefreshView already redraws both boards and the hand together now
@@ -184,14 +163,12 @@ public class GameTester : MonoBehaviour
 
     public void ConfirmRematch() // NEW: opponent agreed - start a fresh match
     {
-        Debug.Log("ConfirmRematch called"); // TEMP
         _RematchPending = false;
         BeginMatch();
     }
 
     public void DeclineRematch() // NEW: opponent said no - go back to the original result
     {
-        Debug.Log("DeclineRematch called"); // TEMP
         _RematchPending = false;
         _ViewingAs = _RematchRequestedBy;
         RefreshView();

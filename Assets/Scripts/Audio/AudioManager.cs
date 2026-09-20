@@ -44,6 +44,12 @@ public class AudioManager : MonoBehaviour
         }
 
         Instance = this;
+        Debug.Log("AudioManager.Awake() ran - Instance is now set. Slide clips: " + (_SlideClips != null ? _SlideClips.Length : -1)
+            + ", Place clips: " + (_PlaceClips != null ? _PlaceClips.Length : -1)
+            + ", Shove clips: " + (_ShoveClips != null ? _ShoveClips.Length : -1)); // TEMP: confirms the singleton exists and what's actually assigned
+
+        int listenerCount = FindObjectsByType<AudioListener>(FindObjectsSortMode.None).Length; // TEMP: 0 means nothing in the scene can actually output sound
+        Debug.Log("AudioManager.Awake() - AudioListeners found in scene: " + listenerCount);
     }
 
     // NEW: named after the SOUND, not the action - call whichever one fits the action you're
@@ -79,17 +85,20 @@ public class AudioManager : MonoBehaviour
     {
         if (clips == null || clips.Length == 0)
         {
+            Debug.Log("PlayRandomClip: bailed - no clips assigned for this array"); // TEMP
             return; // nothing assigned yet for this sound family - safe to skip
         }
 
         if (PlayerPrefs.GetInt(SoundSettings.MutedKey, 0) == 1)
         {
+            Debug.Log("PlayRandomClip: bailed - Muted is on"); // TEMP
             return; // muted - respect the Sound tab's toggle
         }
 
         float volume = PlayerPrefs.GetFloat(SoundSettings.MasterVolumeKey, 1f) * PlayerPrefs.GetFloat(SoundSettings.SFXVolumeKey, 1f);
         if (volume <= 0f)
         {
+            Debug.Log("PlayRandomClip: bailed - computed volume is 0 (Master=" + PlayerPrefs.GetFloat(SoundSettings.MasterVolumeKey, 1f) + ", SFX=" + PlayerPrefs.GetFloat(SoundSettings.SFXVolumeKey, 1f) + ")"); // TEMP
             return;
         }
 
@@ -106,6 +115,8 @@ public class AudioManager : MonoBehaviour
         source.volume = volume;
         source.pitch = pitch;
         source.Play();
+
+        Debug.Log("PlayRandomClip: called Play() on '" + clip.name + "', volume=" + volume + ", clip.length=" + clip.length + ", AudioListenerVolume=" + AudioListener.volume + ", source.isPlaying=" + source.isPlaying); // TEMP
 
         Destroy(tempGO, clip.length / pitch);
     }
