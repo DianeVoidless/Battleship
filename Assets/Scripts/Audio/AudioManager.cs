@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 
 // NEW: a single always-available SFX player. Other scripts call AudioManager.Instance.PlayXSFX()
 // from anywhere without needing a scene reference wired in the Inspector.
@@ -88,6 +89,11 @@ public class AudioManager : MonoBehaviour
         PlayRandomClip(_ShuffleClips);
     }
 
+    public void PlayShuffleSFX(float maxDuration) // NEW: cuts the clip short (with a quick fade, not an abrupt stop) so it doesn't outlast a fast visual shuffle
+    {
+        PlayRandomClip(_ShuffleClips, maxDuration);
+    }
+
     public void PlayFanSFX()
     {
         PlayRandomClip(_FanClips);
@@ -116,7 +122,7 @@ public class AudioManager : MonoBehaviour
         PlayRandomClip(_ToggleClips);
     }
 
-    private void PlayRandomClip(AudioClip[] clips)
+    private void PlayRandomClip(AudioClip[] clips, float maxDuration = -1f) // CHANGED: optional maxDuration cuts the clip short instead of always playing it in full
     {
         if (clips == null || clips.Length == 0)
         {
@@ -153,6 +159,38 @@ public class AudioManager : MonoBehaviour
 
         Debug.Log("PlayRandomClip: called Play() on '" + clip.name + "', volume=" + volume + ", clip.length=" + clip.length + ", AudioListenerVolume=" + AudioListener.volume + ", source.isPlaying=" + source.isPlaying); // TEMP
 
-        Destroy(tempGO, clip.length / pitch);
+        float naturalDuration = clip.length / pitch;
+
+        if (maxDuration > 0f && maxDuration < naturalDuration) // NEW: only cut it short if the caller actually asked for less than the clip's own length
+        {
+            StartCoroutine(FadeOutAndDestroy(source, tempGO, maxDuration));
+        }
+        else
+        {
+            Destroy(tempGO, naturalDuration);
+        }
+    }
+
+    private IEnumerator FadeOutAndDestroy(AudioSource source, GameObject go, float playDuration) // NEW: cuts a clip short with a quick fade instead of an abrupt stop, so it doesn't pop
+    {
+        float fadeTime = Mathf.Min(0.08f, playDuration * 0.5f);
+        float waitTime = Mathf.Max(0f, playDuration - fadeTime);
+
+        yield return new WaitForSeconds(waitTime);
+
+        float startVolume = source != null ? source.volume : 0f;
+        float t = 0f;
+        while (t < fadeTime)
+        {
+            if (source == null)
+            {
+                yield break;
+            }
+            t += Time.deltaTime;
+            source.volume = Mathf.Lerp(startVolume, 0f, t / fadeTime);
+            yield return null;
+        }
+
+        Destroy(go);
     }
 }

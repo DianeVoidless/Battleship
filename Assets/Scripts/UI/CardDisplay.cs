@@ -92,9 +92,15 @@ public class CardDisplay : MonoBehaviour, IPointerClickHandler
     public void OnWildcardBranchClicked(bool isGatedZone, PointerEventData eventData)
     {
         UtilityCard utilityCard = _RepresentedCard as UtilityCard;
-        bool isLiveBranchChoice = utilityCard != null && utilityCard.GetTargetMode() == CardTargetMode.BranchChoice; 
 
-        if (!isLiveBranchChoice)
+        // CHANGED: used to only route to the branch picker while GetTargetMode() was still
+        // BranchChoice (i.e. before any branch had been picked yet) - once a branch was chosen
+        // (even a wrong one, like a misclicked Heal), clicking the OTHER half fell through to a
+        // plain card click instead, which couldn't change the branch at all. That's the "stuck"
+        // bug: there was no way to correct a misclick on the same card without cancelling out of
+        // it first. Now any non-Shield wildcard always routes its zone clicks to the branch picker,
+        // so switching branches works no matter which one is currently chosen.
+        if (utilityCard == null || utilityCard._Type == UtilityType.Shield)
         {
             OnPointerClick(eventData);
             return;
