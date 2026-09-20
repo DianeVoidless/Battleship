@@ -41,8 +41,15 @@ public class TopMenuProximityZone : MonoBehaviour // NEW: same pattern as HandPr
 
         SetRaised(wantRaised);
 
-        float t = 1f - Mathf.Exp(-_EaseSpeed * Time.deltaTime);
-        _MenuPanel.anchoredPosition = Vector2.Lerp(_MenuPanel.anchoredPosition, _TargetPosition, t);
+        if (PlayerPrefs.GetInt(GameplaySettings.ReduceMotionKey, 0) == 1) // NEW: Reduce Motion - snap straight to the target instead of easing into it
+        {
+            _MenuPanel.anchoredPosition = _TargetPosition;
+        }
+        else
+        {
+            float t = 1f - Mathf.Exp(-_EaseSpeed * Time.deltaTime);
+            _MenuPanel.anchoredPosition = Vector2.Lerp(_MenuPanel.anchoredPosition, _TargetPosition, t);
+        }
     }
 
     public void DisableMenu() // NEW

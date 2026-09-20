@@ -40,8 +40,15 @@ public class GameTester : MonoBehaviour
         _ViewingAs = _CurrentGame._ActivePlayer;
     }
 
+    public void SetAutoSwitchView(bool value) // NEW: lets GameplaySettings update this live when the Gameplay tab's toggle changes, not just at launch
+    {
+        _AutoSwitchView = value;
+    }
+
     void Awake()
     {
+        _AutoSwitchView = PlayerPrefs.GetInt(GameplaySettings.AutoSwitchViewKey, _AutoSwitchView ? 1 : 0) == 1; // NEW: restores the saved setting on launch, falling back to this field's own Inspector default the very first time
+
         _RedBoardPanel = _RedBoardDisplay.GetComponent<RectTransform>();
         _BlueBoardPanel = _BlueBoardDisplay.GetComponent<RectTransform>();
 
