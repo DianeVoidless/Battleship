@@ -29,6 +29,18 @@ public class AudioManager : MonoBehaviour
     [Header("Your card-fan clips (2 variants)")]
     public AudioClip[] _FanClips;
 
+    [Header("NEW: UI sounds - menu/settings button clicks (bong_001)")]
+    public AudioClip[] _ClickClips;
+
+    [Header("NEW: UI sounds - confirming a rematch (confirmation_002)")]
+    public AudioClip[] _ConfirmClips;
+
+    [Header("NEW: UI sounds - declining a rematch (error_005)")]
+    public AudioClip[] _DeclineClips;
+
+    [Header("NEW: UI sounds - flipping a toggle (switch_001)")]
+    public AudioClip[] _ToggleClips;
+
     [Header("How much the pitch randomly shifts per play, e.g. 0.05 = +/-5%")]
     [Range(0f, 0.5f)]
     public float _PitchVariance = 0.05f;
@@ -79,6 +91,29 @@ public class AudioManager : MonoBehaviour
     public void PlayFanSFX()
     {
         PlayRandomClip(_FanClips);
+    }
+
+    // NEW: UI feedback sounds - same random-pick-from-array/pitch-variance machinery as the
+    // gameplay sounds above, just fed a single clip each for now. Drag in more variants later
+    // if you want, same as any other array here.
+    public void PlayClickSFX()
+    {
+        PlayRandomClip(_ClickClips);
+    }
+
+    public void PlayConfirmSFX()
+    {
+        PlayRandomClip(_ConfirmClips);
+    }
+
+    public void PlayDeclineSFX()
+    {
+        PlayRandomClip(_DeclineClips);
+    }
+
+    public void PlayToggleSFX()
+    {
+        PlayRandomClip(_ToggleClips);
     }
 
     private void PlayRandomClip(AudioClip[] clips)

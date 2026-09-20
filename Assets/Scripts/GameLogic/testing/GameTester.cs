@@ -28,6 +28,9 @@ public class GameTester : MonoBehaviour
     private PlayerColor _RematchRequestedBy; // NEW: who clicked Play Again
     public GameObject _RematchWaitScreen;    // NEW: "Awaiting opponent confirmation..." - shown to whoever requested it
     public GameObject _RematchConfirmPrompt; // NEW: "Your opponent is requesting a rematch" - shown to the other player
+    public GameObject _InputBlocker; // NEW: full-screen invisible raycast blocker - active whenever the board shouldn't be clickable (rematch pending or game over)
+    public GameObject _InGameRoot;   // NEW: dragged to the "InGame" object - deactivated when a post-match rematch request gets declined
+    public GameObject _MainMenuRoot; // NEW: dragged to "MainMenuScene" - activated in that same case
     [SerializeField] private bool _AutoSwitchView = true;
 
     public void SyncViewToActivePlayer()
@@ -122,6 +125,11 @@ public class GameTester : MonoBehaviour
         _BlueCapturedPile.Refresh(_CurrentGame._PlayerBlue._CapturedShipCount); // NEW
         _HealerChoicePrompt.SetActive(_CurrentGame._AwaitingHealerChoice); // NEW: shows/hides the banner based on whether the active player's Healer is waiting for a pick
 
+        if (_InputBlocker != null) // NEW: block board clicks the whole time a rematch decision is pending or the match has ended, so the underlying game can't be played mid-prompt
+        {
+            _InputBlocker.SetActive(_RematchPending || _CurrentGame._IsGameOver);
+        }
+
         if (_RematchPending) // CHANGED: checked first now, independent of _IsGameOver - a rematch can be requested mid-match (e.g. from the top menu's Restart Match button), not just from the Win/Lose screens
         {
             bool viewingRequester = _ViewingAs == _RematchRequestedBy;
@@ -170,14 +178,25 @@ public class GameTester : MonoBehaviour
 
     public void ConfirmRematch() // NEW: opponent agreed - start a fresh match
     {
+        AudioManager.Instance?.PlayConfirmSFX(); // NEW
         _RematchPending = false;
         BeginMatch();
     }
 
     public void DeclineRematch() // NEW: opponent said no - go back to the original result
     {
+        AudioManager.Instance?.PlayDeclineSFX(); // NEW
         _RematchPending = false;
         _ViewingAs = _RematchRequestedBy;
-        RefreshView();
+
+        if (_CurrentGame._IsGameOver) // CHANGED: the match had already ended when the rematch was requested (from the Win/Lose screen), so there's no match to return to - send the requester to the main menu instead
+        {
+            if (_InGameRoot != null) _InGameRoot.SetActive(false);
+            if (_MainMenuRoot != null) _MainMenuRoot.SetActive(true);
+        }
+        else // a rematch requested mid-match (e.g. the top menu's Restart Match button) - just resume where things left off
+        {
+            RefreshView();
+        }
     }
 }
