@@ -6,6 +6,7 @@ public class UtilityCard : Card
     public UtilityType _Type;
     public CardBranch _ChosenBranch = CardBranch.NotChosen; // NEW: which branch the player picked, for the two choice-cards
     public List<Card> _LastDrawnCards = new List<Card>(); // NEW: whichever cards DrawCards() most recently drew (Draw3 or Cleanse's replacement draw) - TurnController reads this right after Resolve/ResolveHandSelection to animate them sliding in from the draw pile
+    public bool _LastDrawReshuffled; // NEW: mirrors owner._LastDrawReshuffled right after DrawCards() - read alongside _LastDrawnCards so TurnController knows whether to play the discard-pile reshuffle merge before this wildcard's draw animation
 
     public UtilityCard(UtilityType type)
     {
@@ -142,6 +143,7 @@ public class UtilityCard : Card
     private void DrawCards(PlayerState owner, int count) // CHANGED: now delegates to PlayerState.DrawUpToHandSize - the same function the turn-end draw-up-to-hand-size uses - instead of duplicating its own draw/reshuffle logic, and remembers the drawn cards so TurnController can animate them sliding in from the real draw pile, same as that other draw
     {
         _LastDrawnCards = owner.DrawUpToHandSize(owner._Hand.Count + count, playSound: false); // CHANGED: playSound false - GameTester's draw animation plays its own per-card shove sound instead
+        _LastDrawReshuffled = owner._LastDrawReshuffled; // NEW: mirrors the draw that just happened, so TurnController/GameTester know whether to play the reshuffle merge first
     }
 
     public override void OnDiscarded() // NEW: wildcards must forget their branch choice, since the same instance can be reshuffled and drawn again later

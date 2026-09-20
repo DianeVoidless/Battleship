@@ -109,6 +109,7 @@ public class TurnController : MonoBehaviour
         card.ResolveHandSelection(activePlayer, _SelectedHandCards); // NEW: this already drew the replacement cards into activePlayer._Hand via UtilityCard.DrawCards, which also stashed them in card._LastDrawnCards for the animation below
 
         List<Card> wildcardDrawnCards = new List<Card>(card._LastDrawnCards); // NEW: grabbed now, before OnDiscarded()/reuse can touch the card again
+        bool wildcardReshuffled = card._LastDrawReshuffled; // NEW: whether that draw had to reshuffle the discard pile back in - grabbed now for the same reason
 
         activePlayer._Hand.Remove(card);
         activePlayer._DiscardPile.Add(card);
@@ -123,7 +124,7 @@ public class TurnController : MonoBehaviour
         _HandProximityZone.UnpinHand(); // NEW: release the whole-hand-raised state Cleanse selection set
         _SelectedHandCards.Clear();
         _PendingCard = null;
-        _GameTester.FinishTurnAndRefresh(game, turnEndedFor, activePlayer, wildcardDrawnCards); // CHANGED: now also passes along Cleanse's replacement cards, so they visibly slide in from the draw pile instead of just appearing
+        _GameTester.FinishTurnAndRefresh(game, turnEndedFor, activePlayer, wildcardDrawnCards, wildcardReshuffled); // CHANGED: now also passes along Cleanse's replacement cards (and whether the draw pile had to reshuffle), so they visibly slide in from the draw pile instead of just appearing
     }
 
     public void OnCellClicked(CardDisplay display, GridCell cell)
@@ -178,6 +179,7 @@ public class TurnController : MonoBehaviour
         }
 
         bool wasSunkBefore = cell.IsSunk(); // NEW: snapshot so we can tell the exact moment a ship becomes captured
+        bool wasRevealedBefore = cell._Revealed; // NEW: snapshot so we can tell whether this attack is the one that FIRST reveals an enemy cell, for the reveal-flip animation
 
         _PendingCard.Resolve(cell, activePlayer); // CHANGED: now passes the active player as owner
         AudioManager.Instance?.PlayPlaceSFX(); // NEW: the card was just successfully committed to a board cell
@@ -207,6 +209,7 @@ public class TurnController : MonoBehaviour
             PlayerState carrierOwner = isOwnCell ? activePlayer : opponent; // NEW: whoever actually owns this cell, not necessarily whoever just played the card
             int handCap = carrierOwner.HasActiveShip(ShipType.Carrier) ? 7 : 5;
             carrierOwner.DrawUpToHandSize(handCap);
+            _GameTester.SyncDrawPileVisibility(carrierOwner); // NEW: this instant draw isn't animated, but it can still empty (or replenish) the draw pile - keep its art in sync either way
         }
 
         activePlayer._Hand.Remove(_PendingCard); // MOVED: must happen before SpendMove(), since that can trigger the end-of-turn draw-up-to-5 check
@@ -218,7 +221,9 @@ public class TurnController : MonoBehaviour
 
         _PendingCard = null;
         _HandProximityZone.ReleaseForceLowerHand();
-        _GameTester.FinishTurnAndRefresh(game, turnEndedFor); // CHANGED: was SyncViewToActivePlayer() + RefreshBoardsAndHand()
+
+        bool isNewEnemyReveal = !wasRevealedBefore && isEnemyCell && cell._Revealed; // NEW: true only when this exact attack is what first revealed an enemy cell - a re-attack on an already-revealed cell (or hitting your own cell) shouldn't flip anything
+        _GameTester.FinishTurnAndRefresh(game, turnEndedFor, null, null, false, isNewEnemyReveal ? cell : null, isNewEnemyReveal ? opponent : null); // CHANGED: also passes the newly-revealed cell (if any) so GameTester plays the reveal flip before any draw animation
     }
 
     public void OnBackgroundClicked()
@@ -302,7 +307,9 @@ public class TurnController : MonoBehaviour
     {
         card.ResolveNoTarget(activePlayer); // NEW: for Draw3, this already drew the cards into activePlayer._Hand via UtilityCard.DrawCards, which also stashed them in card._LastDrawnCards for the animation below
 
-        List<Card> wildcardDrawnCards = (card is UtilityCard utilityCard) ? new List<Card>(utilityCard._LastDrawnCards) : null; // NEW: grabbed now, before OnDiscarded()/reuse can touch the card again
+        UtilityCard utilityCard = card as UtilityCard; // NEW: cast once, reused below for both the drawn cards and whether that draw had to reshuffle
+        List<Card> wildcardDrawnCards = (utilityCard != null) ? new List<Card>(utilityCard._LastDrawnCards) : null; // NEW: grabbed now, before OnDiscarded()/reuse can touch the card again
+        bool wildcardReshuffled = utilityCard != null && utilityCard._LastDrawReshuffled; // NEW
 
         activePlayer._Hand.Remove(card); // MOVED: must happen before SpendMove()
         activePlayer._DiscardPile.Add(card); // MOVED
@@ -314,7 +321,7 @@ public class TurnController : MonoBehaviour
 
         _PendingCard = null;
         _HandProximityZone.ReleaseForceLowerHand(); // NEW: defensive - if this card reached here by switching FROM a board-targeting branch (e.g. Heal corrected into Draw3), that earlier branch already forced the hand low and nothing had released it yet
-        _GameTester.FinishTurnAndRefresh(game, turnEndedFor, activePlayer, wildcardDrawnCards); // CHANGED: now also passes along any Draw3 cards, so they visibly slide in from the draw pile instead of just appearing
+        _GameTester.FinishTurnAndRefresh(game, turnEndedFor, activePlayer, wildcardDrawnCards, wildcardReshuffled); // CHANGED: now also passes along any Draw3 cards (and whether the draw pile had to reshuffle), so they visibly slide in from the draw pile instead of just appearing
     }
 
     public Card GetPendingCard()

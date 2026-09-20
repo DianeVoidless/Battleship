@@ -17,6 +17,7 @@ public class GameState
     }
 
     public List<Card> _LastDrawnCards = new List<Card>(); // NEW: the cards SwitchActivePlayer() most recently drew for whichever player's turn just ended - read this right after SpendMove() returns non-null, before calling it again, so the caller can animate exactly those cards
+    public bool _LastDrawReshuffled; // NEW: mirrors endingPlayer._LastDrawReshuffled right after SwitchActivePlayer's draw - read alongside _LastDrawnCards so the caller knows whether to play the discard-pile reshuffle merge before the draw-up animation
 
     public PlayerState SpendMove() // CHANGED: returns the player whose turn just ended (and whose hand was just redrawn), or null if this move didn't end the turn - lets callers animate the draw-up before refreshing the view
     {
@@ -42,6 +43,7 @@ public class GameState
         PlayerState endingPlayer = (_ActivePlayer == PlayerColor.Red) ? _PlayerRed : _PlayerBlue;
         int handCap = endingPlayer.HasActiveShip(ShipType.Carrier) ? 7 : 5; // NEW: Carrier raises the draw-back-up-to target
         _LastDrawnCards = endingPlayer.DrawUpToHandSize(handCap, playSound: false); // CHANGED: was hardcoded to 5, the result is now kept for animation purposes, and its own batch sound is skipped - GameTester's turn-end draw animation plays one shove sound per card as each one visually arrives instead
+        _LastDrawReshuffled = endingPlayer._LastDrawReshuffled; // NEW: mirrors the draw that just happened, so GameTester knows whether to play the reshuffle merge first
 
         if (_ActivePlayer == PlayerColor.Red)
         {

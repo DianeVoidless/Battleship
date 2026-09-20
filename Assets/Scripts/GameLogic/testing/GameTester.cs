@@ -41,6 +41,7 @@ public class GameTester : MonoBehaviour
     [Header("NEW: turn-end draw-up-to-hand-size animation - plays on the ending player's OWN view, right before it swaps to the new active player")]
     public float _DrawCardDealDuration = 0.25f; // how long each newly drawn card takes to slide from the draw pile into the hand
 
+
     public void SyncViewToActivePlayer()
     {
         if (!_AutoSwitchView)
@@ -126,6 +127,13 @@ public class GameTester : MonoBehaviour
         // otherwise drag DiscardPile's own active state along with it.
         if (_RedDiscardPile != null) _RedDiscardPile.SetActive(false);
         if (_BlueDiscardPile != null) _BlueDiscardPile.SetActive(false);
+
+        // NEW: defensive reset for a rematch - a previous match may have emptied and hidden a
+        // player's draw pile art (see SyncDrawPileVisibility), and that GameObject's active state
+        // would otherwise persist right through into the new match even though the fresh deck is
+        // obviously full again.
+        if (_RedBoardDisplay._DrawPileRect != null) _RedBoardDisplay._DrawPileRect.gameObject.SetActive(true);
+        if (_BlueBoardDisplay._DrawPileRect != null) _BlueBoardDisplay._DrawPileRect.gameObject.SetActive(true);
 
         RefreshView(false); // CHANGED: false = skip drawing the boards/piles/hand, they don't exist yet
 
@@ -264,19 +272,24 @@ public class GameTester : MonoBehaviour
         RefreshView(); // CHANGED: RefreshView already redraws both boards and the hand together now
     }
 
-    public void FinishTurnAndRefresh(GameState game, PlayerState turnEndedFor, PlayerState wildcardDrawPlayer = null, List<Card> wildcardDrawnCards = null) // CHANGED: now also takes an optional mid-turn wildcard draw (Draw3/Cleanse's replacement cards) to animate FIRST - called after every spent move. If that move also ended the turn (turnEndedFor != null) and drew that player's hand back up, this then briefly holds the view on THEM so they watch those new cards slide in too, before finally swapping POV to the new active player. If neither kind of draw happened, this behaves exactly like the old immediate SyncViewToActivePlayer() + RefreshBoardsAndHand().
+    public void FinishTurnAndRefresh(GameState game, PlayerState turnEndedFor, PlayerState wildcardDrawPlayer = null, List<Card> wildcardDrawnCards = null, bool wildcardReshuffled = false, GridCell revealedCell = null, PlayerState revealedCellOwner = null) // CHANGED: now also takes whether the wildcard's draw had to reshuffle the discard pile back in, so that merge plays right before its draw animation - called after every spent move. If that move also ended the turn (turnEndedFor != null) and drew that player's hand back up, this then briefly holds the view on THEM so they watch those new cards slide in too, before finally swapping POV to the new active player. If none of these happened, this behaves exactly like the old immediate SyncViewToActivePlayer() + RefreshBoardsAndHand().
     {
+        bool hasReveal = revealedCell != null && revealedCellOwner != null; // NEW
         bool hasWildcardDraw = wildcardDrawPlayer != null && wildcardDrawnCards != null && wildcardDrawnCards.Count > 0;
         bool hasTurnEndDraw = turnEndedFor != null && game._LastDrawnCards.Count > 0 && turnEndedFor._Color == _ViewingAs;
 
-        if (hasWildcardDraw || hasTurnEndDraw)
+        if (hasReveal || hasWildcardDraw || hasTurnEndDraw)
         {
             // NEW: copy the lists - GameState's own _LastDrawnCards (and the card's _LastDrawnCards) could be overwritten by a later draw before this coroutine gets to them
             StartCoroutine(PlayAllDrawAnimationsThenFinish(
+                hasReveal ? revealedCell : null,
+                hasReveal ? revealedCellOwner : null,
                 hasWildcardDraw ? wildcardDrawPlayer : null,
                 hasWildcardDraw ? new List<Card>(wildcardDrawnCards) : null,
+                hasWildcardDraw && wildcardReshuffled, // NEW
                 hasTurnEndDraw ? turnEndedFor : null,
-                hasTurnEndDraw ? new List<Card>(game._LastDrawnCards) : null));
+                hasTurnEndDraw ? new List<Card>(game._LastDrawnCards) : null,
+                hasTurnEndDraw && game._LastDrawReshuffled)); // NEW
         }
         else
         {
@@ -285,24 +298,36 @@ public class GameTester : MonoBehaviour
         }
     }
 
-    private IEnumerator PlayAllDrawAnimationsThenFinish(PlayerState wildcardPlayer, List<Card> wildcardCards, PlayerState turnEndedFor, List<Card> turnEndCards) // NEW: plays the mid-turn wildcard draw (if any) first, then the turn-end draw-up-to-hand-size draw (if any), then swaps POV as usual
+    private IEnumerator PlayAllDrawAnimationsThenFinish(GridCell revealedCell, PlayerState revealedCellOwner, PlayerState wildcardPlayer, List<Card> wildcardCards, bool wildcardReshuffled, PlayerState turnEndedFor, List<Card> turnEndCards, bool turnEndReshuffled) // CHANGED: plays the enemy-cell reveal flip (if any) first, then the mid-turn wildcard draw (if any, reshuffle merge first if needed), then the turn-end draw-up-to-hand-size draw (if any, same reshuffle merge treatment), then swaps POV as usual
     {
+        if (revealedCell != null && revealedCellOwner != null)
+        {
+            BoardDisplay revealedBoard = (revealedCellOwner._Color == PlayerColor.Red) ? _RedBoardDisplay : _BlueBoardDisplay;
+            yield return revealedBoard.PlayCellRevealFlip(revealedCell, revealedCellOwner);
+        }
+
         if (wildcardPlayer != null)
         {
-            yield return PlayDrawAnimation(wildcardPlayer, wildcardCards);
+            yield return PlayDrawAnimation(wildcardPlayer, wildcardCards, wildcardReshuffled);
         }
 
         if (turnEndedFor != null)
         {
-            yield return PlayDrawAnimation(turnEndedFor, turnEndCards);
+            yield return PlayDrawAnimation(turnEndedFor, turnEndCards, turnEndReshuffled);
         }
 
         SyncViewToActivePlayer();
         RefreshBoardsAndHand();
     }
 
-    private IEnumerator PlayDrawAnimation(PlayerState player, List<Card> drawnCards) // CHANGED: renamed from PlayDrawAnimationThenSwitchView - the POV switch now lives one level up, so this same routine can also be used for a mid-turn wildcard draw that shouldn't switch POV at all. Holds back the newly drawn cards, refreshes everything else normally, then slides each drawn card in one at a time from the real draw pile
+    private IEnumerator PlayDrawAnimation(PlayerState player, List<Card> drawnCards, bool reshuffled) // CHANGED: renamed from PlayDrawAnimationThenSwitchView - the POV switch now lives one level up, so this same routine can also be used for a mid-turn wildcard draw that shouldn't switch POV at all. Now also takes whether this draw had to reshuffle the discard pile back into the draw pile, so that merge can play BEFORE the refresh below - RefreshBoardsAndHand would otherwise just instantly hide the discard pile (its count is already 0 by this point), with no visual build-up at all. Holds back the newly drawn cards, refreshes everything else normally, then slides each drawn card in one at a time from the real draw pile
     {
+        if (reshuffled)
+        {
+            yield return PlayReshuffleMerge(player); // NEW: discard pile art visibly slides into the draw pile spot and merges in, while it's still the active, visible discard pile from BEFORE this refresh
+            SyncDrawPileVisibility(player); // NEW: the pile was hidden by a PREVIOUS depletion (see below) - now that it's genuinely been replenished, show it again before any cards start flying from it
+        }
+
         foreach (Card card in drawnCards) // NEW: temporarily pull the just-drawn cards back OUT of the hand, so the very next refresh shows the pre-draw hand, not the already-updated one
         {
             player._Hand.Remove(card);
@@ -318,6 +343,33 @@ public class GameTester : MonoBehaviour
         {
             yield return AnimateOneDrawnCard(drawPileRect, handRect, player, card);
         }
+
+        SyncDrawPileVisibility(player); // NEW: this draw may have emptied the pile down to its last card - hide its art now that the last flourish has actually landed, so it visibly reads "nothing left here" until the next reshuffle
+    }
+
+    public void SyncDrawPileVisibility(PlayerState player) // NEW: shows or hides a board's own real DrawPile art based on whether that player's draw pile currently has any cards left in it - called right after any draw (animated here, or the instant Carrier mid-turn draw in TurnController) so an emptied pile stops misleadingly looking like a full one with nothing left to give
+    {
+        BoardDisplay ownBoard = (player._Color == PlayerColor.Red) ? _RedBoardDisplay : _BlueBoardDisplay;
+        if (ownBoard._DrawPileRect != null)
+        {
+            ownBoard._DrawPileRect.gameObject.SetActive(player._DrawPile.Count > 0);
+        }
+    }
+
+    private IEnumerator PlayReshuffleMerge(PlayerState player) // CHANGED: no longer just hops the real discard pile object over - hides it immediately (its job is done, the discard pile is genuinely empty now) and hands off to BoardDisplay.PlayReshuffleFromDiscard, which spawns a flourish that gathers at the table's center, riffle-shuffles like the very first deal, then slides into the draw pile spot - the "whole pile" look instead of a single card silently relocating
+    {
+        GameObject discardObject = (player._Color == PlayerColor.Red) ? _RedDiscardPile : _BlueDiscardPile;
+        BoardDisplay ownBoard = (player._Color == PlayerColor.Red) ? _RedBoardDisplay : _BlueBoardDisplay;
+
+        if (discardObject == null || !discardObject.activeSelf || ownBoard._DrawPileRect == null)
+        {
+            yield break; // safety - nothing visible to animate (e.g. the discard pile was somehow already hidden, or the draw pile target isn't assigned)
+        }
+
+        RectTransform discardRect = discardObject.GetComponent<RectTransform>();
+        discardObject.SetActive(false); // NEW: hidden right away - a flourish card takes over from this exact spot, so the swap is invisible, and the real object no longer needs to be moved or reset afterward
+
+        yield return ownBoard.PlayReshuffleFromDiscard(discardRect, player);
     }
 
     private IEnumerator AnimateOneDrawnCard(RectTransform drawPileRect, RectTransform handRect, PlayerState player, Card card) // NEW: slides one real, face-up card from the player's own draw pile into the hand panel, then adds it back to the hand and lets HandDisplay redraw the real (now-larger) hand in its correct, final layout
