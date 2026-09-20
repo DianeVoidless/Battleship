@@ -5,6 +5,7 @@ public class UtilityCard : Card
 {
     public UtilityType _Type;
     public CardBranch _ChosenBranch = CardBranch.NotChosen; // NEW: which branch the player picked, for the two choice-cards
+    public List<Card> _LastDrawnCards = new List<Card>(); // NEW: whichever cards DrawCards() most recently drew (Draw3 or Cleanse's replacement draw) - TurnController reads this right after Resolve/ResolveHandSelection to animate them sliding in from the draw pile
 
     public UtilityCard(UtilityType type)
     {
@@ -34,7 +35,7 @@ public class UtilityCard : Card
         {
             foreach (GridCell cell in owner._Grid)
             {
-                if (cell._Revealed && cell._DamageInstances.Count > 0)
+                if (cell._Revealed && cell._DamageInstances.Count > 0 && !cell.IsSunk()) // CHANGED: exclude sunk cells - a sunk ship keeps its old damage instances forever, so without this check Heal looked "available" (not greyed out) even when nothing was actually healable, matching PlayerState.GetDamagedShipCells()'s own exclusion
                 {
                     return true;
                 }
@@ -76,7 +77,7 @@ public class UtilityCard : Card
 
         if (_ChosenBranch == CardBranch.Heal) // NEW
         {
-            return cell._Revealed && cell._DamageInstances.Count > 0;
+            return cell._Revealed && cell._DamageInstances.Count > 0 && !cell.IsSunk(); // CHANGED: exclude sunk cells - same fix as IsBranchAvailable, so a sunk ship's leftover damage can't be "healed"
         }
 
         return true;
@@ -138,34 +139,9 @@ public class UtilityCard : Card
         DrawCards(owner, selectedCards.Count);
     }
 
-    private void DrawCards(PlayerState owner, int count) // NEW: shared helper - draws 'count' cards from the draw pile into hand
+    private void DrawCards(PlayerState owner, int count) // CHANGED: now delegates to PlayerState.DrawUpToHandSize - the same function the turn-end draw-up-to-hand-size uses - instead of duplicating its own draw/reshuffle logic, and remembers the drawn cards so TurnController can animate them sliding in from the real draw pile, same as that other draw
     {
-        bool drewAnyCards = false; // NEW
-
-        for (int i = 0; i < count; i++)
-        {
-            if (owner._DrawPile.Count == 0) // CHANGED: reshuffle the discard pile back in first, same as PlayerState.DrawUpToHandSize, instead of giving up early
-            {
-                if (owner._DiscardPile.Count == 0)
-                {
-                    break; // nothing left anywhere to draw - stop instead of looping forever
-                }
-
-                owner._DrawPile.AddRange(owner._DiscardPile);
-                owner._DiscardPile.Clear();
-                GameSetup.ShuffleDeck(owner._DrawPile);
-            }
-
-            Card drawnCard = owner._DrawPile[0];
-            owner._DrawPile.RemoveAt(0);
-            owner._Hand.Add(drawnCard);
-            drewAnyCards = true; // NEW
-        }
-
-        if (drewAnyCards) // NEW: one sound for the whole batch, not one per card
-        {
-            AudioManager.Instance?.PlayShoveSFX();
-        }
+        _LastDrawnCards = owner.DrawUpToHandSize(owner._Hand.Count + count, playSound: false); // CHANGED: playSound false - GameTester's draw animation plays its own per-card shove sound instead
     }
 
     public override void OnDiscarded() // NEW: wildcards must forget their branch choice, since the same instance can be reshuffled and drawn again later

@@ -14,9 +14,9 @@ public class PlayerState
         _Color = color;
     }
 
-    public void DrawUpToHandSize(int targetSize) // NEW: draws from the draw pile until the hand reaches targetSize, reshuffling the discard pile into the draw pile if it runs out
+    public List<Card> DrawUpToHandSize(int targetSize, bool playSound = true) // CHANGED: now returns the cards that were actually newly drawn (so callers like the turn-end draw-up animation know exactly what to animate), and takes playSound so callers that animate this draw themselves - one shove sound per card as it visually arrives - can skip this method's own single batch sound instead of layering both
     {
-        bool drewAnyCards = false; // NEW
+        List<Card> drawnCards = new List<Card>(); // CHANGED: was just a bool - now the actual cards
 
         while (_Hand.Count < targetSize)
         {
@@ -35,13 +35,15 @@ public class PlayerState
             Card drawnCard = _DrawPile[0];
             _DrawPile.RemoveAt(0);
             _Hand.Add(drawnCard);
-            drewAnyCards = true; // NEW
+            drawnCards.Add(drawnCard); // CHANGED
         }
 
-        if (drewAnyCards) // NEW: one sound for the whole batch, not one per card, so a multi-card draw doesn't stutter
+        if (drawnCards.Count > 0 && playSound) // CHANGED: one sound for the whole batch, not one per card - only when nothing else is going to play a sound of its own (the turn-end draw-up animation now plays one shove per card as each visually arrives, so it passes playSound: false here to avoid a redundant extra sound on top)
         {
             AudioManager.Instance?.PlayShoveSFX();
         }
+
+        return drawnCards; // NEW
     }
 
     public bool HasActiveShip(ShipType type) // CHANGED: a ship's passive only kicks in once it's actually been discovered - matches how "damaged" status already works elsewhere in your game

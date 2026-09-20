@@ -14,7 +14,7 @@ public class HandDisplay : MonoBehaviour
 
     private List<CardDisplay> _CurrentDisplays = new List<CardDisplay>();
 
-    public void ShowHand(PlayerState owner)
+    public void ClearHand() // NEW: removes any dealt hand cards without drawing new ones - used right when a match begins, before any cards exist yet
     {
         foreach (Transform child in transform)
         {
@@ -22,6 +22,11 @@ public class HandDisplay : MonoBehaviour
         }
 
         _CurrentDisplays.Clear();
+    }
+
+    public void ShowHand(PlayerState owner)
+    {
+        ClearHand(); // CHANGED: reuses ClearHand instead of repeating the same loop
 
         UpdateCardSpacing(owner._Hand.Count); // NEW: shrink the gap between cards (and let them overlap) once they no longer fit at the normal spacing
 

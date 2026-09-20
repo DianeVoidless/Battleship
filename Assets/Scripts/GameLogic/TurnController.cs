@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic; // NEW: for the List<Card> of wildcard-drawn cards passed to FinishTurnAndRefresh
 
 public class TurnController : MonoBehaviour
 {
@@ -105,7 +106,9 @@ public class TurnController : MonoBehaviour
 
     private void ConfirmHandMultiSelect(UtilityCard card, PlayerState activePlayer) // NEW: player clicked their draw pile to confirm the Cleanse selection
     {
-        card.ResolveHandSelection(activePlayer, _SelectedHandCards);
+        card.ResolveHandSelection(activePlayer, _SelectedHandCards); // NEW: this already drew the replacement cards into activePlayer._Hand via UtilityCard.DrawCards, which also stashed them in card._LastDrawnCards for the animation below
+
+        List<Card> wildcardDrawnCards = new List<Card>(card._LastDrawnCards); // NEW: grabbed now, before OnDiscarded()/reuse can touch the card again
 
         activePlayer._Hand.Remove(card);
         activePlayer._DiscardPile.Add(card);
@@ -113,16 +116,14 @@ public class TurnController : MonoBehaviour
         GameState game = _GameTester.GetGame();
         game.AddMoves(card.GetBonusMoves());
         card.OnDiscarded();
-        game.SpendMove();
-
-        _GameTester.SyncViewToActivePlayer();
+        PlayerState turnEndedFor = game.SpendMove(); // CHANGED: capture whose turn just ended (if any), instead of switching view immediately - GameTester now decides when to actually swap POV, so it can play the draw-up animation first
 
         _HandDisplay.UnpinAllCards();
         _HandProximityZone.ReleaseForceLowerHand();
         _HandProximityZone.UnpinHand(); // NEW: release the whole-hand-raised state Cleanse selection set
         _SelectedHandCards.Clear();
         _PendingCard = null;
-        _GameTester.RefreshBoardsAndHand();
+        _GameTester.FinishTurnAndRefresh(game, turnEndedFor, activePlayer, wildcardDrawnCards); // CHANGED: now also passes along Cleanse's replacement cards, so they visibly slide in from the draw pile instead of just appearing
     }
 
     public void OnCellClicked(CardDisplay display, GridCell cell)
@@ -132,7 +133,7 @@ public class TurnController : MonoBehaviour
 
         if (game._AwaitingHealerChoice) // NEW: the new active player's Healer needs a damaged ship picked before anything else can happen
         {
-            bool isOwnDamagedCell = activePlayer._Grid.Contains(cell) && cell._Revealed && cell._DamageInstances.Count > 0;
+            bool isOwnDamagedCell = activePlayer._Grid.Contains(cell) && cell._Revealed && cell._DamageInstances.Count > 0 && !cell.IsSunk(); // CHANGED: exclude sunk cells - same fix as UtilityCard's Heal checks, so a sunk ship's leftover damage can't be picked here either
             if (!isOwnDamagedCell)
             {
                 return;
@@ -213,13 +214,11 @@ public class TurnController : MonoBehaviour
 
         game.AddMoves(_PendingCard.GetBonusMoves()); // CHANGED: must read GetBonusMoves() before OnDiscarded() resets the chosen branch
         _PendingCard.OnDiscarded(); // NEW: reset any wildcard's chosen branch so it works correctly if drawn again later
-        game.SpendMove();
-
-        _GameTester.SyncViewToActivePlayer();
+        PlayerState turnEndedFor = game.SpendMove(); // CHANGED: capture whose turn just ended (if any) instead of switching view immediately - GameTester now decides when to swap POV, so it can play the draw-up animation first
 
         _PendingCard = null;
         _HandProximityZone.ReleaseForceLowerHand();
-        _GameTester.RefreshBoardsAndHand();
+        _GameTester.FinishTurnAndRefresh(game, turnEndedFor); // CHANGED: was SyncViewToActivePlayer() + RefreshBoardsAndHand()
     }
 
     public void OnBackgroundClicked()
@@ -252,6 +251,19 @@ public class TurnController : MonoBehaviour
         if (isGatedZone && !card.IsBranchAvailable(branch, activePlayer))
         {
             return;
+        }
+
+        // NEW: re-picking a branch on the SAME already-pending card (e.g. correcting a misclicked
+        // Heal into Draw3) skips CancelPendingCard above since card == _PendingCard, but any
+        // in-progress Cleanse selection or hand-raise state from the OLD branch still needs clearing
+        // before the new one takes over - otherwise it lingers (this is the other half of the "stuck"
+        // fix, alongside CardDisplay now always routing here).
+        if (card._ChosenBranch != branch)
+        {
+            _SelectedHandCards.Clear();
+            _HandDisplay.UnpinAllCards();
+            _HandProximityZone.ReleaseForceLowerHand();
+            _HandProximityZone.UnpinHand();
         }
 
         card.ChooseBranch(branch);
@@ -288,7 +300,9 @@ public class TurnController : MonoBehaviour
 
     private void ResolveNoTargetCard(Card card, PlayerState activePlayer)
     {
-        card.ResolveNoTarget(activePlayer);
+        card.ResolveNoTarget(activePlayer); // NEW: for Draw3, this already drew the cards into activePlayer._Hand via UtilityCard.DrawCards, which also stashed them in card._LastDrawnCards for the animation below
+
+        List<Card> wildcardDrawnCards = (card is UtilityCard utilityCard) ? new List<Card>(utilityCard._LastDrawnCards) : null; // NEW: grabbed now, before OnDiscarded()/reuse can touch the card again
 
         activePlayer._Hand.Remove(card); // MOVED: must happen before SpendMove()
         activePlayer._DiscardPile.Add(card); // MOVED
@@ -296,12 +310,11 @@ public class TurnController : MonoBehaviour
         GameState game = _GameTester.GetGame();
         game.AddMoves(card.GetBonusMoves()); // CHANGED: must read GetBonusMoves() before OnDiscarded() resets the chosen branch
         card.OnDiscarded(); // NEW: reset any wildcard's chosen branch so it works correctly if drawn again later
-        game.SpendMove();
-
-        _GameTester.SyncViewToActivePlayer();
+        PlayerState turnEndedFor = game.SpendMove(); // CHANGED: capture whose turn just ended (if any) instead of switching view immediately - GameTester now decides when to swap POV, so it can play the draw-up animation first
 
         _PendingCard = null;
-        _GameTester.RefreshBoardsAndHand();
+        _HandProximityZone.ReleaseForceLowerHand(); // NEW: defensive - if this card reached here by switching FROM a board-targeting branch (e.g. Heal corrected into Draw3), that earlier branch already forced the hand low and nothing had released it yet
+        _GameTester.FinishTurnAndRefresh(game, turnEndedFor, activePlayer, wildcardDrawnCards); // CHANGED: now also passes along any Draw3 cards, so they visibly slide in from the draw pile instead of just appearing
     }
 
     public Card GetPendingCard()
