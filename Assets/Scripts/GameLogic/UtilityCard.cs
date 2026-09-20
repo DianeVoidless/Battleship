@@ -140,6 +140,8 @@ public class UtilityCard : Card
 
     private void DrawCards(PlayerState owner, int count) // NEW: shared helper - draws 'count' cards from the draw pile into hand
     {
+        bool drewAnyCards = false; // NEW
+
         for (int i = 0; i < count; i++)
         {
             if (owner._DrawPile.Count == 0) // CHANGED: reshuffle the discard pile back in first, same as PlayerState.DrawUpToHandSize, instead of giving up early
@@ -157,6 +159,12 @@ public class UtilityCard : Card
             Card drawnCard = owner._DrawPile[0];
             owner._DrawPile.RemoveAt(0);
             owner._Hand.Add(drawnCard);
+            drewAnyCards = true; // NEW
+        }
+
+        if (drewAnyCards) // NEW: one sound for the whole batch, not one per card
+        {
+            AudioManager.Instance?.PlayShoveSFX();
         }
     }
 
