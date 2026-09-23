@@ -41,6 +41,18 @@ public class GameTester : MonoBehaviour
     [Header("NEW: turn-end draw-up-to-hand-size animation - plays on the ending player's OWN view, right before it swaps to the new active player")]
     public float _DrawCardDealDuration = 0.25f; // how long each newly drawn card takes to slide from the draw pile into the hand
 
+    [Header("NEW: missile attack animation - plays whenever an attack card is resolved, flying from the bottom of the screen up to the clicked board cell")]
+    public Sprite _RedMissileSprite;   // drag the red-missile art here
+    public Sprite _WhiteMissileSprite; // drag the white-missile art here
+    public Vector2 _MissileSize = new Vector2(40f, 100f); // on-screen size of the missile while it's flying
+    public float _MissileSpawnY = -1200f; // how far below this canvas's own center the missile starts - tune this so it's safely below everything visible at your canvas's reference resolution
+    public float _MissileFlightDuration = 0.35f; // time to travel from spawn to the target cell's center - constant speed (not eased), since a real projectile doesn't ease in/out
+    public float _MissileLaunchStagger = 0.12f; // NEW: delay between each consecutive missile in a multi-missile red-attack volley (e.g. a 2-damage or 4-damage red missile card launches that many missiles in a row, this many seconds apart)
+
+    [Header("NEW: card shake - plays on the targeted card itself the instant a missile actually hits it")]
+    public float _CardShakeDuration = 0.2f; // how long the shake lasts, fading out over this time
+    public float _CardShakeMagnitude = 8f; // how far (in UI units) the card jitters from its resting position at the shake's peak
+
 
     public void SyncViewToActivePlayer()
     {
@@ -272,18 +284,26 @@ public class GameTester : MonoBehaviour
         RefreshView(); // CHANGED: RefreshView already redraws both boards and the hand together now
     }
 
-    public void FinishTurnAndRefresh(GameState game, PlayerState turnEndedFor, PlayerState wildcardDrawPlayer = null, List<Card> wildcardDrawnCards = null, bool wildcardReshuffled = false, GridCell revealedCell = null, PlayerState revealedCellOwner = null) // CHANGED: now also takes whether the wildcard's draw had to reshuffle the discard pile back in, so that merge plays right before its draw animation - called after every spent move. If that move also ended the turn (turnEndedFor != null) and drew that player's hand back up, this then briefly holds the view on THEM so they watch those new cards slide in too, before finally swapping POV to the new active player. If none of these happened, this behaves exactly like the old immediate SyncViewToActivePlayer() + RefreshBoardsAndHand().
+    public void FinishTurnAndRefresh(GameState game, PlayerState turnEndedFor, PlayerState wildcardDrawPlayer = null, List<Card> wildcardDrawnCards = null, bool wildcardReshuffled = false, GridCell revealedCell = null, PlayerState revealedCellOwner = null, CardDisplay missileTarget = null, TargetColor missileColor = default, int missileCount = 1, bool missilePlaysHitSound = false, GridCell sunkCell = null, PlayerState sunkCellOwner = null) // CHANGED: now also takes an optional sunk cell (and whose board it's on) - if this exact move is what just sunk a ship, the shockwave plays on that board right after the reveal flip
     {
         bool hasReveal = revealedCell != null && revealedCellOwner != null; // NEW
+        bool hasMissile = missileTarget != null; // NEW
+        bool hasSunk = sunkCell != null && sunkCellOwner != null; // NEW
         bool hasWildcardDraw = wildcardDrawPlayer != null && wildcardDrawnCards != null && wildcardDrawnCards.Count > 0;
         bool hasTurnEndDraw = turnEndedFor != null && game._LastDrawnCards.Count > 0 && turnEndedFor._Color == _ViewingAs;
 
-        if (hasReveal || hasWildcardDraw || hasTurnEndDraw)
+        if (hasReveal || hasMissile || hasSunk || hasWildcardDraw || hasTurnEndDraw)
         {
             // NEW: copy the lists - GameState's own _LastDrawnCards (and the card's _LastDrawnCards) could be overwritten by a later draw before this coroutine gets to them
             StartCoroutine(PlayAllDrawAnimationsThenFinish(
+                hasMissile ? missileTarget : null,
+                missileColor,
+                Mathf.Max(1, missileCount),
+                missilePlaysHitSound,
                 hasReveal ? revealedCell : null,
                 hasReveal ? revealedCellOwner : null,
+                hasSunk ? sunkCell : null,
+                hasSunk ? sunkCellOwner : null,
                 hasWildcardDraw ? wildcardDrawPlayer : null,
                 hasWildcardDraw ? new List<Card>(wildcardDrawnCards) : null,
                 hasWildcardDraw && wildcardReshuffled, // NEW
@@ -298,8 +318,18 @@ public class GameTester : MonoBehaviour
         }
     }
 
-    private IEnumerator PlayAllDrawAnimationsThenFinish(GridCell revealedCell, PlayerState revealedCellOwner, PlayerState wildcardPlayer, List<Card> wildcardCards, bool wildcardReshuffled, PlayerState turnEndedFor, List<Card> turnEndCards, bool turnEndReshuffled) // CHANGED: plays the enemy-cell reveal flip (if any) first, then the mid-turn wildcard draw (if any, reshuffle merge first if needed), then the turn-end draw-up-to-hand-size draw (if any, same reshuffle merge treatment), then swaps POV as usual
+    private IEnumerator PlayAllDrawAnimationsThenFinish(CardDisplay missileTarget, TargetColor missileColor, int missileCount, bool missilePlaysHitSound, GridCell revealedCell, PlayerState revealedCellOwner, GridCell sunkCell, PlayerState sunkCellOwner, PlayerState wildcardPlayer, List<Card> wildcardCards, bool wildcardReshuffled, PlayerState turnEndedFor, List<Card> turnEndCards, bool turnEndReshuffled) // CHANGED: plays the missile volley (if any) first - the shockwave (if any) now plays FROM WITHIN that volley, timed to the exact instant the killing missile hits (same moment as its impact sound), not afterward - then the enemy-cell reveal flip (if any), then the mid-turn wildcard draw (if any, reshuffle merge first if needed), then the turn-end draw-up-to-hand-size draw (if any, same reshuffle merge treatment), then swaps POV as usual
     {
+        if (missileTarget != null)
+        {
+            yield return PlayMissileVolley(missileTarget, missileColor, missileCount, missilePlaysHitSound, sunkCell, sunkCellOwner);
+        }
+        else if (sunkCell != null && sunkCellOwner != null) // safety fallback - a sunk cell should always come paired with an attack's missile, but just in case, still play it
+        {
+            BoardDisplay sunkBoard = (sunkCellOwner._Color == PlayerColor.Red) ? _RedBoardDisplay : _BlueBoardDisplay;
+            yield return sunkBoard.PlayShockwave(sunkCell);
+        }
+
         if (revealedCell != null && revealedCellOwner != null)
         {
             BoardDisplay revealedBoard = (revealedCellOwner._Color == PlayerColor.Red) ? _RedBoardDisplay : _BlueBoardDisplay;
@@ -454,6 +484,196 @@ public class GameTester : MonoBehaviour
         Vector2 localPoint;
         RectTransformUtility.ScreenPointToLocalPointInRectangle(destSpace, screenPoint, cam, out localPoint);
         return localPoint;
+    }
+
+    public void PlayMissileAndRevealThenRefresh(CardDisplay missileTarget, TargetColor missileColor, int missileCount, bool missilePlaysHitSound, GridCell revealedCell, PlayerState revealedCellOwner, GridCell sunkCell = null, PlayerState sunkCellOwner = null) // CHANGED: same missile volley + reveal-flip + shockwave sequence as a normal attack, but for the exact shot that ends the match - TurnController's game-over branch calls this instead of refreshing immediately, so the missile(s), reveal flip, and shockwave (whichever apply) all still visibly play before the Win/Lose screen appears
+    {
+        StartCoroutine(PlayMissileAndRevealThenRefreshRoutine(missileTarget, missileColor, missileCount, missilePlaysHitSound, revealedCell, revealedCellOwner, sunkCell, sunkCellOwner));
+    }
+
+    private IEnumerator PlayMissileAndRevealThenRefreshRoutine(CardDisplay missileTarget, TargetColor missileColor, int missileCount, bool missilePlaysHitSound, GridCell revealedCell, PlayerState revealedCellOwner, GridCell sunkCell, PlayerState sunkCellOwner)
+    {
+        if (missileTarget != null)
+        {
+            yield return PlayMissileVolley(missileTarget, missileColor, missileCount, missilePlaysHitSound, sunkCell, sunkCellOwner);
+        }
+        else if (sunkCell != null && sunkCellOwner != null) // safety fallback - a sunk cell should always come paired with an attack's missile, but just in case, still play it
+        {
+            BoardDisplay sunkBoard = (sunkCellOwner._Color == PlayerColor.Red) ? _RedBoardDisplay : _BlueBoardDisplay;
+            yield return sunkBoard.PlayShockwave(sunkCell);
+        }
+
+        if (revealedCell != null && revealedCellOwner != null)
+        {
+            BoardDisplay revealedBoard = (revealedCellOwner._Color == PlayerColor.Red) ? _RedBoardDisplay : _BlueBoardDisplay;
+            yield return revealedBoard.PlayCellRevealFlip(revealedCell, revealedCellOwner);
+        }
+
+        RefreshBoardsAndHand(); // no SyncViewToActivePlayer here - the match just ended, there's no next turn to switch to
+    }
+
+    private IEnumerator PlayMissileVolley(CardDisplay targetDisplay, TargetColor missileColor, int missileCount, bool missilePlaysHitSound, GridCell sunkCell, PlayerState sunkCellOwner) // CHANGED: also takes the sunk cell (if any) - the shockwave now plays timed to the LAST missile's own impact (same moment as its hit sound), fired at the SUNK ship's board, rather than waiting until after the reveal flip. Fires 'missileCount' missiles at the same target, one shortly after another (_MissileLaunchStagger apart) instead of waiting for each to land before launching the next - a multi-damage red attack (2, 4, or 5 with Cruiser's buff) reads as a volley, not a single shot. Waits for the LAST missile's own flight (plus its shake and/or shockwave, if any) to finish before returning, so whatever plays next (the reveal flip) still waits for the whole thing.
+    {
+        missileCount = Mathf.Max(1, missileCount);
+
+        for (int i = 0; i < missileCount; i++)
+        {
+            bool isLastMissile = i == missileCount - 1; // NEW: the shockwave (if this hit sinks a ship) is tied to the LAST missile's own impact - only it gets the sunk-cell info, so a multi-missile volley doesn't retrigger the shockwave once per missile
+            StartCoroutine(PlayMissileAttack(targetDisplay, missileColor, missilePlaysHitSound, isLastMissile ? sunkCell : null, isLastMissile ? sunkCellOwner : null)); // NEW: each missile flies independently once launched - not yielded on directly, so the next one can launch before this one lands
+            if (i < missileCount - 1)
+            {
+                yield return new WaitForSeconds(_MissileLaunchStagger);
+            }
+        }
+
+        // CHANGED: also waits out the shake and/or shockwave (when this hit actually plays either) -
+        // otherwise whatever runs right after the volley (the reveal flip, or a plain
+        // RefreshBoardsAndHand) fires while the last missile's ShakeCard/PlayShockwave coroutines are
+        // still mid-animation. RefreshBoardsAndHand in particular destroys and recreates every board
+        // card, which silently kills those coroutines' target RectTransforms after just a frame or
+        // two - the effect never gets to actually finish playing.
+        float finalWait = _MissileFlightDuration + (missilePlaysHitSound ? _CardShakeDuration : 0f);
+        if (sunkCell != null && sunkCellOwner != null)
+        {
+            BoardDisplay sunkBoard = (sunkCellOwner._Color == PlayerColor.Red) ? _RedBoardDisplay : _BlueBoardDisplay;
+            finalWait += sunkBoard._ShockwaveDuration;
+        }
+        yield return new WaitForSeconds(finalWait); // the last missile launched still needs its own full flight time (plus its shake and/or shockwave, if any) to finish
+    }
+
+    private IEnumerator PlayMissileAttack(CardDisplay targetDisplay, TargetColor missileColor, bool missilePlaysHitSound, GridCell sunkCell, PlayerState sunkCellOwner) // CHANGED: also takes the sunk cell (if any) - spawns a missile at the bottom of the screen, on top of everything, and flies it in a straight line up to the clicked board cell's center, then destroys it right there - no reparenting, no tucking underneath, just launch -> fly -> arrive -> gone. The actual reveal/damage already happened the instant the card was clicked (see TurnController.OnCellClicked), this is purely the visual that "causes" it
+    {
+        if (targetDisplay == null)
+        {
+            yield break; // safety - the target card might already be gone by the time this runs
+        }
+
+        Sprite missileSprite = (missileColor == TargetColor.Red) ? _RedMissileSprite : _WhiteMissileSprite;
+        if (missileSprite == null)
+        {
+            yield break; // safety - no missile art assigned yet, skip the animation rather than show a blank image
+        }
+
+        RectTransform targetRect = (RectTransform)targetDisplay.transform;
+        Canvas canvas = targetRect.GetComponentInParent<Canvas>();
+        RectTransform canvasRect = (canvas != null) ? (RectTransform)canvas.transform : targetRect;
+
+        GameObject missileObject = new GameObject("MissileFlourish");
+        missileObject.transform.SetParent(canvasRect, false);
+        Image missileImage = missileObject.AddComponent<Image>();
+        missileImage.sprite = missileSprite;
+        missileImage.raycastTarget = false; // NEW: purely visual - never intercept clicks meant for the board underneath
+
+        RectTransform missileRect = missileObject.GetComponent<RectTransform>();
+        missileRect.sizeDelta = _MissileSize;
+        missileRect.anchorMin = new Vector2(0.5f, 0.5f);
+        missileRect.anchorMax = new Vector2(0.5f, 0.5f);
+        missileRect.pivot = new Vector2(0.5f, 0.5f);
+        missileRect.SetAsLastSibling(); // on top of everything on the Canvas, for the whole flight
+
+        Vector2 targetLocalPos = ConvertWorldCenterToLocal(targetRect, canvasRect);
+        Vector2 spawnLocalPos = new Vector2(targetLocalPos.x, _MissileSpawnY); // straight line up from the bottom of the screen, directly below the target
+
+        Vector2 direction = (targetLocalPos - spawnLocalPos).normalized;
+        float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg - 90f; // NEW: -90 assumes the missile art points "up" in its own unrotated sprite - adjust this offset if your art points a different way
+        missileRect.localEulerAngles = new Vector3(0f, 0f, angle);
+        missileRect.anchoredPosition = spawnLocalPos;
+
+        // CHANGED: no launch sound anymore - with a whole volley of missiles firing off in quick
+        // succession (see PlayMissileVolley), a launch sound per missile piled up into too much
+        // noise. Only the impact sound remains, and only when it's actually earned - see below.
+
+        yield return LerpMissile(missileRect, spawnLocalPos, targetLocalPos, _MissileFlightDuration);
+
+        // CHANGED: the shockwave now triggers FIRST, before the hit sound/shake below - it reads the
+        // sunk card's own anchoredPosition as its "origin" to compute where its neighbors should be,
+        // and ShakeCard (started right after) writes its first random jitter offset to that same
+        // position SYNCHRONOUSLY the instant it's started (Unity runs a coroutine up to its first
+        // yield immediately). Shockwave used to run second and would read the card's position while
+        // it was already mid-jitter, throwing the whole neighbor grid off by a random few pixels each
+        // time - which is why it only worked "by luck" when that random wobble happened to land inside
+        // the match tolerance. Triggering it first means it always reads the card's true resting spot.
+        if (sunkCell != null && sunkCellOwner != null)
+        {
+            BoardDisplay sunkBoard = (sunkCellOwner._Color == PlayerColor.Red) ? _RedBoardDisplay : _BlueBoardDisplay;
+            StartCoroutine(sunkBoard.PlayShockwave(sunkCell));
+        }
+
+        // CHANGED: the impact sound is conditional - 'missilePlaysHitSound' (computed by the
+        // caller, which knows the actual cell) is true for a red missile only when it lands on a
+        // real ship other than a Submarine, and for a white missile only when it lands on a
+        // Submarine - any other outcome (including an empty cell) stays silent on impact.
+        if (missilePlaysHitSound)
+        {
+            if (missileColor == TargetColor.Red)
+            {
+                AudioManager.Instance?.PlayRedMissileHitSFX();
+            }
+            else
+            {
+                AudioManager.Instance?.PlayWhiteMissileHitSFX();
+            }
+
+            // NEW: same "actually hit something" condition as the impact sound above - the targeted
+            // card itself jitters briefly right on impact. Fire-and-forget (not yielded on) so a
+            // multi-missile volley landing in quick succession can shake the same card again on each
+            // hit without waiting for the previous shake to finish.
+            StartCoroutine(ShakeCard(targetRect));
+        }
+
+        if (missileObject != null)
+        {
+            Destroy(missileObject); // arrived at the target's center - gone immediately, no lingering underneath anything
+        }
+    }
+
+    private IEnumerator ShakeCard(RectTransform rect) // NEW: brief, decaying jitter on a board card's own position - used when a missile actually lands a hit on it. Restores the card's exact original position when it finishes (or if the card is destroyed/refreshed away mid-shake).
+    {
+        if (rect == null)
+        {
+            yield break;
+        }
+
+        Vector2 originalPos = rect.anchoredPosition;
+        float t = 0f;
+
+        while (t < _CardShakeDuration)
+        {
+            if (rect == null)
+            {
+                yield break; // safety - the board may have refreshed this card away mid-shake
+            }
+            t += Time.deltaTime;
+            float damper = 1f - Mathf.Clamp01(t / _CardShakeDuration); // shake eases out instead of stopping abruptly
+            Vector2 offset = new Vector2(Random.Range(-1f, 1f), Random.Range(-1f, 1f)) * _CardShakeMagnitude * damper;
+            rect.anchoredPosition = originalPos + offset;
+            yield return null;
+        }
+
+        if (rect != null)
+        {
+            rect.anchoredPosition = originalPos;
+        }
+    }
+
+    private IEnumerator LerpMissile(RectTransform rect, Vector2 from, Vector2 to, float duration) // NEW: constant-speed (not eased) position lerp - a missile flies straight and fast, it doesn't ease in/out like the card flourishes elsewhere
+    {
+        float t = 0f;
+        while (t < duration)
+        {
+            if (rect == null)
+            {
+                yield break;
+            }
+            t += Time.deltaTime;
+            float p = Mathf.Clamp01(t / duration);
+            rect.anchoredPosition = Vector2.LerpUnclamped(from, to, p);
+            yield return null;
+        }
+        if (rect != null)
+        {
+            rect.anchoredPosition = to;
+        }
     }
 
     public void RequestRematch() // NEW: called by "Play Again" on either the Win or Lose screen

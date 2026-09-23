@@ -42,6 +42,15 @@ public class AudioManager : MonoBehaviour
     [Header("NEW: UI sounds - flipping a toggle (switch_001)")]
     public AudioClip[] _ToggleClips;
 
+    [Header("NEW: red missile hitting its target (played the instant it arrives/vanishes)")]
+    public AudioClip[] _RedMissileHitClips;
+
+    [Header("NEW: white missile hitting its target (played the instant it arrives/vanishes)")]
+    public AudioClip[] _WhiteMissileHitClips;
+
+    [Header("NEW: a Submarine being revealed for the first time")]
+    public AudioClip[] _SubmarineDiscoveredClips;
+
     [Header("How much the pitch randomly shifts per play, e.g. 0.05 = +/-5%")]
     [Range(0f, 0.5f)]
     public float _PitchVariance = 0.05f;
@@ -57,12 +66,6 @@ public class AudioManager : MonoBehaviour
         }
 
         Instance = this;
-        Debug.Log("AudioManager.Awake() ran - Instance is now set. Slide clips: " + (_SlideClips != null ? _SlideClips.Length : -1)
-            + ", Place clips: " + (_PlaceClips != null ? _PlaceClips.Length : -1)
-            + ", Shove clips: " + (_ShoveClips != null ? _ShoveClips.Length : -1)); // TEMP: confirms the singleton exists and what's actually assigned
-
-        int listenerCount = FindObjectsByType<AudioListener>(FindObjectsSortMode.None).Length; // TEMP: 0 means nothing in the scene can actually output sound
-        Debug.Log("AudioManager.Awake() - AudioListeners found in scene: " + listenerCount);
     }
 
     // NEW: named after the SOUND, not the action - call whichever one fits the action you're
@@ -122,24 +125,39 @@ public class AudioManager : MonoBehaviour
         PlayRandomClip(_ToggleClips);
     }
 
+    // NEW: missile + Submarine-discovery SFX - same random-pick/pitch-variance machinery as
+    // everything else here, just fed whichever clips you drag into each array above. Drop in one
+    // clip or several variants for any of these, exactly like the arrays above.
+    public void PlayRedMissileHitSFX()
+    {
+        PlayRandomClip(_RedMissileHitClips);
+    }
+
+    public void PlayWhiteMissileHitSFX()
+    {
+        PlayRandomClip(_WhiteMissileHitClips);
+    }
+
+    public void PlaySubmarineDiscoveredSFX()
+    {
+        PlayRandomClip(_SubmarineDiscoveredClips);
+    }
+
     private void PlayRandomClip(AudioClip[] clips, float maxDuration = -1f) // CHANGED: optional maxDuration cuts the clip short instead of always playing it in full
     {
         if (clips == null || clips.Length == 0)
         {
-            Debug.Log("PlayRandomClip: bailed - no clips assigned for this array"); // TEMP
             return; // nothing assigned yet for this sound family - safe to skip
         }
 
         if (PlayerPrefs.GetInt(SoundSettings.MutedKey, 0) == 1)
         {
-            Debug.Log("PlayRandomClip: bailed - Muted is on"); // TEMP
             return; // muted - respect the Sound tab's toggle
         }
 
         float volume = PlayerPrefs.GetFloat(SoundSettings.MasterVolumeKey, 1f) * PlayerPrefs.GetFloat(SoundSettings.SFXVolumeKey, 1f);
         if (volume <= 0f)
         {
-            Debug.Log("PlayRandomClip: bailed - computed volume is 0 (Master=" + PlayerPrefs.GetFloat(SoundSettings.MasterVolumeKey, 1f) + ", SFX=" + PlayerPrefs.GetFloat(SoundSettings.SFXVolumeKey, 1f) + ")"); // TEMP
             return;
         }
 
@@ -156,8 +174,6 @@ public class AudioManager : MonoBehaviour
         source.volume = volume;
         source.pitch = pitch;
         source.Play();
-
-        Debug.Log("PlayRandomClip: called Play() on '" + clip.name + "', volume=" + volume + ", clip.length=" + clip.length + ", AudioListenerVolume=" + AudioListener.volume + ", source.isPlaying=" + source.isPlaying); // TEMP
 
         float naturalDuration = clip.length / pitch;
 

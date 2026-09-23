@@ -1012,6 +1012,8 @@ MonoBehaviour:
   _HandDealDuration: 0.1
   _HandPanelRect: {fileID: 780138319}
   _DrawPileRect: {fileID: 1200564015}
+  _RevealFlipDuration: 0.25
+  _ReshuffleTravelDuration: 0.3
 --- !u!114 &118140370
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13487,6 +13489,7 @@ MonoBehaviour:
   _ZoneArea: {fileID: 1510808663}
   _RestHeight: 91.432
   _RaisedHeight: 317
+  _RaiseDuration: 0.2
 --- !u!1 &1528335546
 GameObject:
   m_ObjectHideFlags: 0
@@ -13801,6 +13804,12 @@ MonoBehaviour:
   _MainMenuRoot: {fileID: 804478469}
   _AutoSwitchView: 1
   _DrawCardDealDuration: 0.25
+  _RedMissileSprite: {fileID: 21300000, guid: 6884145a9ed2c9d4493b2df3964a1c5c, type: 3}
+  _WhiteMissileSprite: {fileID: 21300000, guid: 63176b3b3012c364d9b67373514e4a63, type: 3}
+  _MissileSize: {x: 40, y: 100}
+  _MissileSpawnY: -1200
+  _MissileFlightDuration: 0.35
+  _MissileLaunchStagger: 0.12
 --- !u!4 &1538662978
 Transform:
   m_ObjectHideFlags: 0
@@ -17465,6 +17474,8 @@ MonoBehaviour:
   _HandDealDuration: 0.1
   _HandPanelRect: {fileID: 780138319}
   _DrawPileRect: {fileID: 1318283841}
+  _RevealFlipDuration: 0.25
+  _ReshuffleTravelDuration: 0.3
 --- !u!114 &1818995824
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -17980,6 +17991,15 @@ MonoBehaviour:
   - {fileID: 8300000, guid: a94ab090e3c39584ab60a0fc2ceccdf4, type: 3}
   _ToggleClips:
   - {fileID: 8300000, guid: 46970cb6fb0cdf24b9b2d7509142efed, type: 3}
+  _RedMissileLaunchClips: []
+  _RedMissileHitClips:
+  - {fileID: 8300000, guid: 0365f160346f9bb488b7303e3e3e6766, type: 3}
+  - {fileID: 8300000, guid: b6084995ece65d04a8ccb0386e098765, type: 3}
+  _WhiteMissileLaunchClips: []
+  _WhiteMissileHitClips:
+  - {fileID: 8300000, guid: ce889bf65f8564047827c15860a73ad7, type: 3}
+  _SubmarineDiscoveredClips:
+  - {fileID: 8300000, guid: 8e12741bd5da51d4486b8df60226027d, type: 3}
   _PitchVariance: 0.05
 --- !u!4 &1847096843
 Transform:
