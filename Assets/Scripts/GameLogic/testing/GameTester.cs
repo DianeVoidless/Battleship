@@ -284,7 +284,7 @@ public class GameTester : MonoBehaviour
         RefreshView(); // CHANGED: RefreshView already redraws both boards and the hand together now
     }
 
-    public void FinishTurnAndRefresh(GameState game, PlayerState turnEndedFor, PlayerState wildcardDrawPlayer = null, List<Card> wildcardDrawnCards = null, bool wildcardReshuffled = false, GridCell revealedCell = null, PlayerState revealedCellOwner = null, CardDisplay missileTarget = null, TargetColor missileColor = default, int missileCount = 1, bool missilePlaysHitSound = false, GridCell sunkCell = null, PlayerState sunkCellOwner = null) // CHANGED: now also takes an optional sunk cell (and whose board it's on) - if this exact move is what just sunk a ship, the shockwave plays on that board right after the reveal flip
+    public void FinishTurnAndRefresh(GameState game, PlayerState turnEndedFor, PlayerState wildcardDrawPlayer = null, List<Card> wildcardDrawnCards = null, bool wildcardReshuffled = false, GridCell revealedCell = null, PlayerState revealedCellOwner = null, CardDisplay missileTarget = null, TargetColor missileColor = default, int missileCount = 1, bool missilePlaysHitSound = false, GridCell sunkCell = null, PlayerState sunkCellOwner = null, TargetColor hitSoundColor = default) // CHANGED: now also takes an optional sunk cell (and whose board it's on) - if this exact move is what just sunk a ship, the shockwave plays on that board right after the reveal flip. NEW: hitSoundColor - which impact SFX family actually plays, separate from missileColor (which only drives the missile's sprite/flight) - lets a Destroyer-buffed white missile hitting an ordinary ship sound like a red impact
     {
         bool hasReveal = revealedCell != null && revealedCellOwner != null; // NEW
         bool hasMissile = missileTarget != null; // NEW
@@ -298,6 +298,7 @@ public class GameTester : MonoBehaviour
             StartCoroutine(PlayAllDrawAnimationsThenFinish(
                 hasMissile ? missileTarget : null,
                 missileColor,
+                hitSoundColor,
                 Mathf.Max(1, missileCount),
                 missilePlaysHitSound,
                 hasReveal ? revealedCell : null,
@@ -318,11 +319,11 @@ public class GameTester : MonoBehaviour
         }
     }
 
-    private IEnumerator PlayAllDrawAnimationsThenFinish(CardDisplay missileTarget, TargetColor missileColor, int missileCount, bool missilePlaysHitSound, GridCell revealedCell, PlayerState revealedCellOwner, GridCell sunkCell, PlayerState sunkCellOwner, PlayerState wildcardPlayer, List<Card> wildcardCards, bool wildcardReshuffled, PlayerState turnEndedFor, List<Card> turnEndCards, bool turnEndReshuffled) // CHANGED: plays the missile volley (if any) first - the shockwave (if any) now plays FROM WITHIN that volley, timed to the exact instant the killing missile hits (same moment as its impact sound), not afterward - then the enemy-cell reveal flip (if any), then the mid-turn wildcard draw (if any, reshuffle merge first if needed), then the turn-end draw-up-to-hand-size draw (if any, same reshuffle merge treatment), then swaps POV as usual
+    private IEnumerator PlayAllDrawAnimationsThenFinish(CardDisplay missileTarget, TargetColor missileColor, TargetColor hitSoundColor, int missileCount, bool missilePlaysHitSound, GridCell revealedCell, PlayerState revealedCellOwner, GridCell sunkCell, PlayerState sunkCellOwner, PlayerState wildcardPlayer, List<Card> wildcardCards, bool wildcardReshuffled, PlayerState turnEndedFor, List<Card> turnEndCards, bool turnEndReshuffled) // CHANGED: plays the missile volley (if any) first - the shockwave (if any) now plays FROM WITHIN that volley, timed to the exact instant the killing missile hits (same moment as its impact sound), not afterward - then the enemy-cell reveal flip (if any), then the mid-turn wildcard draw (if any, reshuffle merge first if needed), then the turn-end draw-up-to-hand-size draw (if any, same reshuffle merge treatment), then swaps POV as usual
     {
         if (missileTarget != null)
         {
-            yield return PlayMissileVolley(missileTarget, missileColor, missileCount, missilePlaysHitSound, sunkCell, sunkCellOwner);
+            yield return PlayMissileVolley(missileTarget, missileColor, hitSoundColor, missileCount, missilePlaysHitSound, sunkCell, sunkCellOwner);
         }
         else if (sunkCell != null && sunkCellOwner != null) // safety fallback - a sunk cell should always come paired with an attack's missile, but just in case, still play it
         {
@@ -486,16 +487,16 @@ public class GameTester : MonoBehaviour
         return localPoint;
     }
 
-    public void PlayMissileAndRevealThenRefresh(CardDisplay missileTarget, TargetColor missileColor, int missileCount, bool missilePlaysHitSound, GridCell revealedCell, PlayerState revealedCellOwner, GridCell sunkCell = null, PlayerState sunkCellOwner = null) // CHANGED: same missile volley + reveal-flip + shockwave sequence as a normal attack, but for the exact shot that ends the match - TurnController's game-over branch calls this instead of refreshing immediately, so the missile(s), reveal flip, and shockwave (whichever apply) all still visibly play before the Win/Lose screen appears
+    public void PlayMissileAndRevealThenRefresh(CardDisplay missileTarget, TargetColor missileColor, int missileCount, bool missilePlaysHitSound, GridCell revealedCell, PlayerState revealedCellOwner, GridCell sunkCell = null, PlayerState sunkCellOwner = null, TargetColor hitSoundColor = default) // CHANGED: same missile volley + reveal-flip + shockwave sequence as a normal attack, but for the exact shot that ends the match - TurnController's game-over branch calls this instead of refreshing immediately, so the missile(s), reveal flip, and shockwave (whichever apply) all still visibly play before the Win/Lose screen appears
     {
-        StartCoroutine(PlayMissileAndRevealThenRefreshRoutine(missileTarget, missileColor, missileCount, missilePlaysHitSound, revealedCell, revealedCellOwner, sunkCell, sunkCellOwner));
+        StartCoroutine(PlayMissileAndRevealThenRefreshRoutine(missileTarget, missileColor, hitSoundColor, missileCount, missilePlaysHitSound, revealedCell, revealedCellOwner, sunkCell, sunkCellOwner));
     }
 
-    private IEnumerator PlayMissileAndRevealThenRefreshRoutine(CardDisplay missileTarget, TargetColor missileColor, int missileCount, bool missilePlaysHitSound, GridCell revealedCell, PlayerState revealedCellOwner, GridCell sunkCell, PlayerState sunkCellOwner)
+    private IEnumerator PlayMissileAndRevealThenRefreshRoutine(CardDisplay missileTarget, TargetColor missileColor, TargetColor hitSoundColor, int missileCount, bool missilePlaysHitSound, GridCell revealedCell, PlayerState revealedCellOwner, GridCell sunkCell, PlayerState sunkCellOwner)
     {
         if (missileTarget != null)
         {
-            yield return PlayMissileVolley(missileTarget, missileColor, missileCount, missilePlaysHitSound, sunkCell, sunkCellOwner);
+            yield return PlayMissileVolley(missileTarget, missileColor, hitSoundColor, missileCount, missilePlaysHitSound, sunkCell, sunkCellOwner);
         }
         else if (sunkCell != null && sunkCellOwner != null) // safety fallback - a sunk cell should always come paired with an attack's missile, but just in case, still play it
         {
@@ -512,14 +513,14 @@ public class GameTester : MonoBehaviour
         RefreshBoardsAndHand(); // no SyncViewToActivePlayer here - the match just ended, there's no next turn to switch to
     }
 
-    private IEnumerator PlayMissileVolley(CardDisplay targetDisplay, TargetColor missileColor, int missileCount, bool missilePlaysHitSound, GridCell sunkCell, PlayerState sunkCellOwner) // CHANGED: also takes the sunk cell (if any) - the shockwave now plays timed to the LAST missile's own impact (same moment as its hit sound), fired at the SUNK ship's board, rather than waiting until after the reveal flip. Fires 'missileCount' missiles at the same target, one shortly after another (_MissileLaunchStagger apart) instead of waiting for each to land before launching the next - a multi-damage red attack (2, 4, or 5 with Cruiser's buff) reads as a volley, not a single shot. Waits for the LAST missile's own flight (plus its shake and/or shockwave, if any) to finish before returning, so whatever plays next (the reveal flip) still waits for the whole thing.
+    private IEnumerator PlayMissileVolley(CardDisplay targetDisplay, TargetColor missileColor, TargetColor hitSoundColor, int missileCount, bool missilePlaysHitSound, GridCell sunkCell, PlayerState sunkCellOwner) // CHANGED: also takes the sunk cell (if any) - the shockwave now plays timed to the LAST missile's own impact (same moment as its hit sound), fired at the SUNK ship's board, rather than waiting until after the reveal flip. Fires 'missileCount' missiles at the same target, one shortly after another (_MissileLaunchStagger apart) instead of waiting for each to land before launching the next - a multi-damage red attack (2, 4, or 5 with Cruiser's buff) reads as a volley, not a single shot. Waits for the LAST missile's own flight (plus its shake and/or shockwave, if any) to finish before returning, so whatever plays next (the reveal flip) still waits for the whole thing.
     {
         missileCount = Mathf.Max(1, missileCount);
 
         for (int i = 0; i < missileCount; i++)
         {
             bool isLastMissile = i == missileCount - 1; // NEW: the shockwave (if this hit sinks a ship) is tied to the LAST missile's own impact - only it gets the sunk-cell info, so a multi-missile volley doesn't retrigger the shockwave once per missile
-            StartCoroutine(PlayMissileAttack(targetDisplay, missileColor, missilePlaysHitSound, isLastMissile ? sunkCell : null, isLastMissile ? sunkCellOwner : null)); // NEW: each missile flies independently once launched - not yielded on directly, so the next one can launch before this one lands
+            StartCoroutine(PlayMissileAttack(targetDisplay, missileColor, hitSoundColor, missilePlaysHitSound, isLastMissile ? sunkCell : null, isLastMissile ? sunkCellOwner : null)); // NEW: each missile flies independently once launched - not yielded on directly, so the next one can launch before this one lands
             if (i < missileCount - 1)
             {
                 yield return new WaitForSeconds(_MissileLaunchStagger);
@@ -541,7 +542,7 @@ public class GameTester : MonoBehaviour
         yield return new WaitForSeconds(finalWait); // the last missile launched still needs its own full flight time (plus its shake and/or shockwave, if any) to finish
     }
 
-    private IEnumerator PlayMissileAttack(CardDisplay targetDisplay, TargetColor missileColor, bool missilePlaysHitSound, GridCell sunkCell, PlayerState sunkCellOwner) // CHANGED: also takes the sunk cell (if any) - spawns a missile at the bottom of the screen, on top of everything, and flies it in a straight line up to the clicked board cell's center, then destroys it right there - no reparenting, no tucking underneath, just launch -> fly -> arrive -> gone. The actual reveal/damage already happened the instant the card was clicked (see TurnController.OnCellClicked), this is purely the visual that "causes" it
+    private IEnumerator PlayMissileAttack(CardDisplay targetDisplay, TargetColor missileColor, TargetColor hitSoundColor, bool missilePlaysHitSound, GridCell sunkCell, PlayerState sunkCellOwner) // CHANGED: also takes the sunk cell (if any) - spawns a missile at the bottom of the screen, on top of everything, and flies it in a straight line up to the clicked board cell's center, then destroys it right there - no reparenting, no tucking underneath, just launch -> fly -> arrive -> gone. The actual reveal/damage already happened the instant the card was clicked (see TurnController.OnCellClicked), this is purely the visual that "causes" it
     {
         if (targetDisplay == null)
         {
@@ -602,10 +603,14 @@ public class GameTester : MonoBehaviour
         // CHANGED: the impact sound is conditional - 'missilePlaysHitSound' (computed by the
         // caller, which knows the actual cell) is true for a red missile only when it lands on a
         // real ship other than a Submarine, and for a white missile only when it lands on a
-        // Submarine - any other outcome (including an empty cell) stays silent on impact.
+        // Submarine (or, with Destroyer active, any other ship) - any other outcome (including an
+        // empty cell, or a white missile blocked by a shield) stays silent on impact. NEW: which
+        // clip family actually plays is 'hitSoundColor', not 'missileColor' - a Destroyer-buffed
+        // white missile landing on an ordinary ship (not a Submarine) is set by the caller to sound
+        // exactly like a red impact, even though the missile itself still flies in as white.
         if (missilePlaysHitSound)
         {
-            if (missileColor == TargetColor.Red)
+            if (hitSoundColor == TargetColor.Red)
             {
                 AudioManager.Instance?.PlayRedMissileHitSFX();
             }

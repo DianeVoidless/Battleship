@@ -157,7 +157,6 @@ public class GameState
         else if (damaged.Count > 1)
         {
             _AwaitingHealerChoice = true;
-            Debug.Log("Healer: choose one of your damaged ships to heal");
         }
     }
 }
