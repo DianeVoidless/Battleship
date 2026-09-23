@@ -202,16 +202,34 @@ public class TurnController : MonoBehaviour
             ? attackCard._Damage + (activePlayer.HasActiveShip(ShipType.Cruiser) ? 1 : 0)
             : 1;
 
+        // NEW: mirrors the exact same Destroyer check AttackCard.Resolve makes internally - needed
+        // here too so the impact sound (and its gating) matches what Resolve is actually about to do.
+        bool canHitAnyShip = attackCard != null && attackCard._Color == TargetColor.White && activePlayer.HasActiveShip(ShipType.Destroyer);
+
+        // NEW: a shield is only ever poppable by a red missile - while one is up, a white missile is
+        // fully blocked (no shield damage, no hull damage, nothing), whether it's protecting a
+        // Submarine or (via Destroyer) any other ship. Checked before Resolve() since white attacks
+        // never touch _ShieldHP either way, so its value here is exactly what Resolve will also see.
+        bool whiteBlockedByShield = attackCard != null && attackCard._Color == TargetColor.White && cell._ShieldHP > 0;
+
         // CHANGED: whether the missile plays an impact sound depends on color AND what it's actually
         // hitting. Red missiles always launch, but their impact sound is reserved for a genuine hit
-        // on a ship OTHER than a Submarine (red can't even damage a Submarine - see AttackCard - and
-        // an empty cell shouldn't clang either). White missiles are the opposite case: their only
-        // real target is a Submarine, so their impact sound plays only then, never on anything else.
+        // on a ship OTHER than a Submarine (red can't even damage a Submarine's hull - see AttackCard
+        // - and an empty cell shouldn't clang either). White missiles play their impact sound on a
+        // genuine hit too: a Submarine (its usual target), or - now that Destroyer can buff them to
+        // hit anything - any other real ship, as long as a shield isn't blocking it entirely.
         bool missilePlaysHitSound = attackCard == null
             ? false
             : (attackCard._Color == TargetColor.Red)
                 ? (cell._Ship != ShipType.None && cell._Ship != ShipType.Submarine)
-                : (cell._Ship == ShipType.Submarine);
+                : (!whiteBlockedByShield && (cell._Ship == ShipType.Submarine || (canHitAnyShip && cell._Ship != ShipType.None)));
+
+        // NEW: which impact SFX family actually plays - normally the same as the missile's own color,
+        // EXCEPT a Destroyer-buffed white missile landing on an ordinary ship (not a Submarine), which
+        // now sounds exactly like a red missile impact even though it still flies in and looks white.
+        TargetColor missileHitSoundColor = (attackCard != null && attackCard._Color == TargetColor.White && canHitAnyShip && cell._Ship != ShipType.None && cell._Ship != ShipType.Submarine)
+            ? TargetColor.Red
+            : missileColor;
 
         _PendingCard.Resolve(cell, activePlayer); // CHANGED: now passes the active player as owner
         AudioManager.Instance?.PlayPlaceSFX(); // NEW: the card was just successfully committed to a board cell
@@ -238,7 +256,7 @@ public class TurnController : MonoBehaviour
             _HandProximityZone.ReleaseForceLowerHand();
 
             bool isNewEnemyRevealForWin = !wasRevealedBefore && isEnemyCell && cell._Revealed; // NEW: same first-reveal check as the normal path below, for the exact shot that wins the match
-            _GameTester.PlayMissileAndRevealThenRefresh(missileTargetDisplay, missileColor, missileCount, missilePlaysHitSound, isNewEnemyRevealForWin ? cell : null, isNewEnemyRevealForWin ? opponent : null, sunkCell, sunkCellOwner); // CHANGED: was a plain reveal-only refresh - the winning shot still gets its missile volley (and reveal flip, if this was also a first-time reveal), plus the shockwave if this exact shot is what sunk the last ship, before the Win/Lose screen appears
+            _GameTester.PlayMissileAndRevealThenRefresh(missileTargetDisplay, missileColor, missileCount, missilePlaysHitSound, isNewEnemyRevealForWin ? cell : null, isNewEnemyRevealForWin ? opponent : null, sunkCell, sunkCellOwner, missileHitSoundColor); // CHANGED: was a plain reveal-only refresh - the winning shot still gets its missile volley (and reveal flip, if this was also a first-time reveal), plus the shockwave if this exact shot is what sunk the last ship, before the Win/Lose screen appears
             return; // NEW: no more turn processing once the match is decided - don't switch the active player or trigger the next turn's Healer
         }
 
@@ -261,7 +279,7 @@ public class TurnController : MonoBehaviour
         _HandProximityZone.ReleaseForceLowerHand();
 
         bool isNewEnemyReveal = !wasRevealedBefore && isEnemyCell && cell._Revealed; // NEW: true only when this exact attack is what first revealed an enemy cell - a re-attack on an already-revealed cell (or hitting your own cell) shouldn't flip anything
-        _GameTester.FinishTurnAndRefresh(game, turnEndedFor, null, null, false, isNewEnemyReveal ? cell : null, isNewEnemyReveal ? opponent : null, missileTargetDisplay, missileColor, missileCount, missilePlaysHitSound, sunkCell, sunkCellOwner); // CHANGED: also passes the missile target/count/hit-sound and, separately, the sunk cell (if this move is what just sunk it) so GameTester flies the volley, then the reveal flip, then the shockwave on its board, before any draw animation
+        _GameTester.FinishTurnAndRefresh(game, turnEndedFor, null, null, false, isNewEnemyReveal ? cell : null, isNewEnemyReveal ? opponent : null, missileTargetDisplay, missileColor, missileCount, missilePlaysHitSound, sunkCell, sunkCellOwner, missileHitSoundColor); // CHANGED: also passes the missile target/count/hit-sound and, separately, the sunk cell (if this move is what just sunk it) so GameTester flies the volley, then the reveal flip, then the shockwave on its board, before any draw animation
     }
 
     public void OnBackgroundClicked()

@@ -27,26 +27,41 @@ public class AttackCard : Card
 
         if (_Color == TargetColor.Red)
         {
-            if (target._Ship == ShipType.Submarine)
-            {
-                return; // Submarine's passive: red missiles simply can't touch it
-            }
-
             int damage = _Damage;
             if (owner.HasActiveShip(ShipType.Cruiser)) // NEW: Cruiser buffs the player's own outgoing red missile damage
             {
                 damage += 1;
             }
 
-            target.TakeDamage(damage);
+            if (target._Ship == ShipType.Submarine)
+            {
+                // CHANGED: a Submarine's hull is still immune to red missiles, but its shield (if any)
+                // is NOT - a shield is always targetable by red regardless of what it's protecting, so
+                // this still pops it exactly like a normal hit would. Any leftover damage beyond the
+                // shield's own HP is simply wasted - it never reaches the Submarine's actual hull.
+                UnityEngine.Debug.Log("AttackCard.Resolve: RED hitting Submarine for " + damage + " damage - shield-only, hull is immune"); // TEMP
+                target.TakeShieldDamage(damage);
+            }
+            else
+            {
+                UnityEngine.Debug.Log("AttackCard.Resolve: RED hitting " + target._Ship + " for " + damage + " damage"); // TEMP
+                target.TakeDamage(damage);
+            }
         }
         else // white missile
         {
             bool canHitAnyShip = owner.HasActiveShip(ShipType.Destroyer); // NEW: Destroyer lets white missiles target any ship, not just the submarine
 
+            UnityEngine.Debug.Log("AttackCard.Resolve: WHITE hitting " + target._Ship + " - canHitAnyShip(Destroyer active)=" + canHitAnyShip); // TEMP: confirms whether the Destroyer passive is actually detected as active for this hit
             if (target._Ship == ShipType.Submarine || canHitAnyShip)
             {
-                target.TakeDamage(1);
+                // CHANGED: white missiles can never target a shield at all - only red can pop one - so
+                // this always bypasses _ShieldHP entirely and hits the hull directly, shielded or not.
+                target.TakeHullDamage(1);
+            }
+            else
+            {
+                UnityEngine.Debug.Log("AttackCard.Resolve: WHITE missile did nothing - not a Submarine and Destroyer passive not active"); // TEMP
             }
         }
     }
