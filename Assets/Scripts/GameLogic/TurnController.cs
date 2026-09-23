@@ -142,7 +142,16 @@ public class TurnController : MonoBehaviour
 
             cell.RemoveHighestDamage();
             game._AwaitingHealerChoice = false;
-            _GameTester.RefreshBoardsAndHand();
+
+            PlayerState healerTurnEndedFor = game.PassIfStuck(); // CHANGED: renamed from turnEndedFor - this method declares another local of that same name further down, and C# doesn't allow a nested block to reuse a name already used in the method's enclosing scope, even in a branch that returns before reaching it. If this player's hand turns out to have zero legal plays left (e.g. it's nothing but Shield cards with no revealed own ship to target), don't leave the match waiting on an action that can never come
+            if (healerTurnEndedFor != null)
+            {
+                _GameTester.FinishTurnAndRefresh(game, healerTurnEndedFor);
+            }
+            else
+            {
+                _GameTester.RefreshBoardsAndHand();
+            }
             return;
         }
 
@@ -181,10 +190,37 @@ public class TurnController : MonoBehaviour
         bool wasSunkBefore = cell.IsSunk(); // NEW: snapshot so we can tell the exact moment a ship becomes captured
         bool wasRevealedBefore = cell._Revealed; // NEW: snapshot so we can tell whether this attack is the one that FIRST reveals an enemy cell, for the reveal-flip animation
 
+        AttackCard attackCard = _PendingCard as AttackCard; // NEW: only an attack card fires a missile - Heal/Shield/wildcards resolve with no projectile
+        CardDisplay missileTargetDisplay = (attackCard != null) ? display : null; // NEW: 'display' is already the exact CardDisplay the player clicked - that's the missile's destination
+        TargetColor missileColor = (attackCard != null) ? attackCard._Color : default;
+
+        // NEW: a red missile card launches one missile PER POINT of damage it deals (2, 4, or 5 with
+        // Cruiser's +1 buff all fire that many missiles in a row), so a heavier hit visibly reads as
+        // a bigger volley. White missiles always deal exactly 1 damage, so they always stay a single
+        // missile - no need to special-case them here.
+        int missileCount = (attackCard != null && attackCard._Color == TargetColor.Red)
+            ? attackCard._Damage + (activePlayer.HasActiveShip(ShipType.Cruiser) ? 1 : 0)
+            : 1;
+
+        // CHANGED: whether the missile plays an impact sound depends on color AND what it's actually
+        // hitting. Red missiles always launch, but their impact sound is reserved for a genuine hit
+        // on a ship OTHER than a Submarine (red can't even damage a Submarine - see AttackCard - and
+        // an empty cell shouldn't clang either). White missiles are the opposite case: their only
+        // real target is a Submarine, so their impact sound plays only then, never on anything else.
+        bool missilePlaysHitSound = attackCard == null
+            ? false
+            : (attackCard._Color == TargetColor.Red)
+                ? (cell._Ship != ShipType.None && cell._Ship != ShipType.Submarine)
+                : (cell._Ship == ShipType.Submarine);
+
         _PendingCard.Resolve(cell, activePlayer); // CHANGED: now passes the active player as owner
         AudioManager.Instance?.PlayPlaceSFX(); // NEW: the card was just successfully committed to a board cell
 
-        if (!wasSunkBefore && cell.IsSunk()) // NEW: this attack just brought the ship to 0 HP - credit whoever landed the hit
+        bool justSunk = !wasSunkBefore && cell.IsSunk(); // NEW: this attack just brought the ship to 0 HP
+        PlayerState sunkCellOwner = isOwnCell ? activePlayer : opponent; // NEW: whoever's board this sunk cell actually lives on (same pattern as the Carrier check further below) - the shockwave plays on THIS player's board, not necessarily the attacker's
+        GridCell sunkCell = justSunk ? cell : null; // NEW: passed through to GameTester so it can play the shockwave on the correct board, right after the reveal flip
+
+        if (justSunk) // credit whoever landed the hit
         {
             activePlayer._CapturedShipCount++;
         }
@@ -200,7 +236,9 @@ public class TurnController : MonoBehaviour
 
             _PendingCard = null;
             _HandProximityZone.ReleaseForceLowerHand();
-            _GameTester.RefreshBoardsAndHand();
+
+            bool isNewEnemyRevealForWin = !wasRevealedBefore && isEnemyCell && cell._Revealed; // NEW: same first-reveal check as the normal path below, for the exact shot that wins the match
+            _GameTester.PlayMissileAndRevealThenRefresh(missileTargetDisplay, missileColor, missileCount, missilePlaysHitSound, isNewEnemyRevealForWin ? cell : null, isNewEnemyRevealForWin ? opponent : null, sunkCell, sunkCellOwner); // CHANGED: was a plain reveal-only refresh - the winning shot still gets its missile volley (and reveal flip, if this was also a first-time reveal), plus the shockwave if this exact shot is what sunk the last ship, before the Win/Lose screen appears
             return; // NEW: no more turn processing once the match is decided - don't switch the active player or trigger the next turn's Healer
         }
 
@@ -223,7 +261,7 @@ public class TurnController : MonoBehaviour
         _HandProximityZone.ReleaseForceLowerHand();
 
         bool isNewEnemyReveal = !wasRevealedBefore && isEnemyCell && cell._Revealed; // NEW: true only when this exact attack is what first revealed an enemy cell - a re-attack on an already-revealed cell (or hitting your own cell) shouldn't flip anything
-        _GameTester.FinishTurnAndRefresh(game, turnEndedFor, null, null, false, isNewEnemyReveal ? cell : null, isNewEnemyReveal ? opponent : null); // CHANGED: also passes the newly-revealed cell (if any) so GameTester plays the reveal flip before any draw animation
+        _GameTester.FinishTurnAndRefresh(game, turnEndedFor, null, null, false, isNewEnemyReveal ? cell : null, isNewEnemyReveal ? opponent : null, missileTargetDisplay, missileColor, missileCount, missilePlaysHitSound, sunkCell, sunkCellOwner); // CHANGED: also passes the missile target/count/hit-sound and, separately, the sunk cell (if this move is what just sunk it) so GameTester flies the volley, then the reveal flip, then the shockwave on its board, before any draw animation
     }
 
     public void OnBackgroundClicked()

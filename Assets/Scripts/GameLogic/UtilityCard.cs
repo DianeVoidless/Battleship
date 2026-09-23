@@ -73,7 +73,7 @@ public class UtilityCard : Card
     {
         if (_Type == UtilityType.Shield)
         {
-            return cell._Revealed && cell._Ship != ShipType.None;
+            return cell._Revealed && cell._Ship != ShipType.None && !cell.IsSunk(); // CHANGED: exclude sunk cells - a sunk ship's cell still has _Ship set (it's never cleared), so without this check you could "shield" an already-destroyed ship, an empty spot that no longer does anything
         }
 
         if (_ChosenBranch == CardBranch.Heal) // NEW

@@ -86,4 +86,30 @@ public class PlayerState
         }
         return true;
     }
+
+    public void SortHand() // NEW: puts the hand into a fixed, readable order - used right after the initial deal, so the deal flourish (which reads _Hand by index) already shows cards in their final sorted order instead of jumping into place once HandDisplay takes over
+    {
+        _Hand.Sort((a, b) => GetHandSortKey(a).CompareTo(GetHandSortKey(b)));
+    }
+
+    public static int GetHandSortKey(Card card) // NEW: lower sorts first - White missiles, then Red missiles (grouped, then sorted by damage ascending within the group), then the Cleanse/ExtraPlay wildcard, then the Heal/Draw3 wildcard, then Shield. Public/static so HandDisplay can use the exact same ordering when it re-sorts a display copy of the hand on every render, without duplicating this rule in two places.
+    {
+        if (card is AttackCard attackCard)
+        {
+            if (attackCard._Color == TargetColor.White)
+            {
+                return 0;
+            }
+            return 1000 + attackCard._Damage; // red missiles - grouped after white, sorted by damage ascending within the group
+        }
+
+        if (card is UtilityCard utilityCard)
+        {
+            if (utilityCard._Type == UtilityType.CleanseOrExtraPlay) return 2000;
+            if (utilityCard._Type == UtilityType.HealOrDraw3) return 3000;
+            if (utilityCard._Type == UtilityType.Shield) return 4000;
+        }
+
+        return 5000; // safety fallback - shouldn't happen given the current card types
+    }
 }

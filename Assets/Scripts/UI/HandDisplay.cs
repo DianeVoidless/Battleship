@@ -30,7 +30,16 @@ public class HandDisplay : MonoBehaviour
 
         UpdateCardSpacing(owner._Hand.Count); // NEW: shrink the gap between cards (and let them overlap) once they no longer fit at the normal spacing
 
-        foreach (Card card in owner._Hand)
+        // CHANGED: renders a freshly-sorted COPY of the hand every time, rather than iterating
+        // owner._Hand directly - cards get appended to _Hand in whatever order they're drawn or
+        // returned in (a mid-turn draw animation adds each new card back one at a time, for
+        // instance), so re-sorting here is what keeps the on-screen hand in its fixed order
+        // (White missiles, Red missiles by damage, Cleanse/ExtraPlay, Heal/Draw3, Shield) no matter
+        // how the underlying list ended up ordered.
+        List<Card> sortedHand = new List<Card>(owner._Hand);
+        sortedHand.Sort((a, b) => PlayerState.GetHandSortKey(a).CompareTo(PlayerState.GetHandSortKey(b)));
+
+        foreach (Card card in sortedHand)
         {
             GameObject cardObject = Instantiate(_CardDisplayPrefab, transform);
             CardDisplay display = cardObject.GetComponent<CardDisplay>();

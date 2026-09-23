@@ -89,6 +89,8 @@ public static class GameSetup
             player._DrawPile.RemoveAt(0);
             player._Hand.Add(drawnCard);
         }
+
+        player.SortHand(); // NEW: puts the freshly-dealt hand into its fixed order - the deal flourish in BoardDisplay reads this hand by index, so it needs to already be in the same order HandDisplay will show it in
     }
 
     public static GameState StartNewGame()

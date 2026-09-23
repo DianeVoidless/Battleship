@@ -44,6 +44,10 @@ public class BoardDisplay : MonoBehaviour
     [Header("NEW: enemy board reveal flip - plays on a board cell the instant an attack card reveals it for the first time")]
     public float _RevealFlipDuration = 0.25f; // total time for the flip (half shrinking down to edge-on, half growing back out) - the sprite swap happens right at the midpoint, while the card is edge-on and invisible
 
+    [Header("NEW: ship-sunk shockwave - plays on the (up to) four cards directly adjacent to a ship the instant it's sunk, each rising slightly outward in its own direction")]
+    public float _ShockwaveRiseDistance = 14f; // how far the neighboring card rises, in its own outward direction, at the shake's peak
+    public float _ShockwaveDuration = 0.25f; // how long the whole rise-and-settle takes, per neighboring card
+
     [Header("NEW: discard pile reshuffle - when the draw pile empties, the WHOLE discard pile visibly gathers at the center of this board (same spot the original deck slide-in used), riffle-shuffles just like the very first deal, then slides into the draw pile spot to become the new draw pile")]
     public float _ReshuffleTravelDuration = 0.3f; // how long each of the two travel legs takes (discard spot -> center, then center -> draw pile spot)
 
@@ -671,18 +675,22 @@ public class BoardDisplay : MonoBehaviour
         }
     }
 
-    public IEnumerator PlayCellRevealFlip(GridCell cell, PlayerState owner) // NEW: finds the already-existing CardDisplay for this cell (the same one DealFromDeck/ShowBoard placed), flips it edge-on and back while swapping in the now-revealed sprite at the midpoint - reuses the existing GameObject directly, so no grid-position math is needed, and the normal ShowBoard() refresh that follows will destroy/recreate it identically once this finishes
+    private CardDisplay FindDisplayForCell(GridCell cell) // NEW: shared lookup - the same "find the existing CardDisplay by its represented cell" search PlayCellRevealFlip already did inline, factored out so PlayShockwave can reuse it (once for the sunk cell itself, then again per neighbor cell it finds geometrically)
     {
-        CardDisplay target = null;
         foreach (Transform child in transform)
         {
             CardDisplay display = child.GetComponent<CardDisplay>();
             if (display != null && display._RepresentedCell == cell)
             {
-                target = display;
-                break;
+                return display;
             }
         }
+        return null;
+    }
+
+    public IEnumerator PlayCellRevealFlip(GridCell cell, PlayerState owner) // NEW: finds the already-existing CardDisplay for this cell (the same one DealFromDeck/ShowBoard placed), flips it edge-on and back while swapping in the now-revealed sprite at the midpoint - reuses the existing GameObject directly, so no grid-position math is needed, and the normal ShowBoard() refresh that follows will destroy/recreate it identically once this finishes
+    {
+        CardDisplay target = FindDisplayForCell(cell);
 
         if (target == null)
         {
@@ -704,7 +712,104 @@ public class BoardDisplay : MonoBehaviour
         Sprite shieldSprite = _ArtDatabase.GetShieldSprite(cell, owner._Color);
         target.SetShieldOverlay(shieldSprite);
 
+        if (cell._Ship == ShipType.Submarine) // NEW: a distinct sting the instant a Submarine's sprite is what actually gets revealed, right at the flip's midpoint
+        {
+            AudioManager.Instance?.PlaySubmarineDiscoveredSFX();
+        }
+
         yield return ScaleCardX(cardRect, 0f, 1f, halfDuration); // grow back out, now showing the revealed face
+    }
+
+    public IEnumerator PlayShockwave(GridCell sunkCell) // NEW: plays right after a ship is sunk - finds the (up to) four cards immediately above/below/left/right of the sunk cell ON THIS BOARD, and briefly rises each one outward in its own direction (up rises up, down rises down, left rises left, right rises right). Works purely off each existing card's own on-screen anchoredPosition rather than the underlying data list's index order, so it's correct regardless of how DealFromDeck may have flipped the row order for a rotated/far-side board.
+    {
+        CardDisplay sunkDisplay = FindDisplayForCell(sunkCell);
+        GridLayoutGroup grid = GetComponent<GridLayoutGroup>();
+
+        if (sunkDisplay == null || grid == null)
+        {
+            yield break; // safety - the board may already have been refreshed/cleared, or this board has no grid layout to measure cell spacing from
+        }
+
+        RectTransform sunkRect = (RectTransform)sunkDisplay.transform;
+        Vector2 origin = sunkRect.anchoredPosition;
+
+        float stepX = grid.cellSize.x + grid.spacing.x;
+        float stepY = grid.cellSize.y + grid.spacing.y;
+
+        // NEW: anchoredPosition's Y increases upward in this panel's local space (see
+        // ComputeCellAnchoredPosition above) - so the neighbor one row UP the screen sits at a
+        // HIGHER Y (origin + stepY), and rises further in that same +Y direction; the neighbor one
+        // row DOWN sits at a LOWER Y and rises further down; left/right work the same way on X.
+        TryRiseNeighbor(origin + new Vector2(0f, stepY), Vector2.up);
+        TryRiseNeighbor(origin - new Vector2(0f, stepY), Vector2.down);
+        TryRiseNeighbor(origin - new Vector2(stepX, 0f), Vector2.left);
+        TryRiseNeighbor(origin + new Vector2(stepX, 0f), Vector2.right);
+
+        yield return new WaitForSeconds(_ShockwaveDuration); // lets the whole shockwave finish playing before whatever runs next (typically a full board refresh)
+    }
+
+    private void TryRiseNeighbor(Vector2 expectedPos, Vector2 direction) // NEW: finds whichever of this board's OTHER cards is actually sitting at expectedPos (within a small tolerance, to allow for float rounding) and, if one exists there, starts it rising in 'direction'. A missing neighbor (the sunk cell was on an edge/corner) is simply skipped.
+    {
+        const float tolerance = 4f;
+
+        foreach (Transform child in transform)
+        {
+            CardDisplay display = child.GetComponent<CardDisplay>();
+            if (display == null)
+            {
+                continue;
+            }
+
+            RectTransform rect = (RectTransform)child;
+            if (Vector2.Distance(rect.anchoredPosition, expectedPos) <= tolerance)
+            {
+                StartCoroutine(RiseCard(rect, direction));
+                return;
+            }
+        }
+    }
+
+    private IEnumerator RiseCard(RectTransform rect, Vector2 direction) // NEW: rises a card a short distance in 'direction' and eases back to its exact original position - the shockwave's per-neighbor animation
+    {
+        if (rect == null)
+        {
+            yield break;
+        }
+
+        Vector2 originalPos = rect.anchoredPosition;
+        Vector2 peakPos = originalPos + direction.normalized * _ShockwaveRiseDistance;
+        float halfDuration = _ShockwaveDuration / 2f;
+
+        float t = 0f;
+        while (t < halfDuration) // rise out
+        {
+            if (rect == null)
+            {
+                yield break;
+            }
+            t += Time.deltaTime;
+            float p = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / halfDuration));
+            rect.anchoredPosition = Vector2.LerpUnclamped(originalPos, peakPos, p);
+            yield return null;
+        }
+
+        t = 0f;
+        while (t < halfDuration) // settle back
+        {
+            if (rect == null)
+            {
+                yield break;
+            }
+            t += Time.deltaTime;
+            float p = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / halfDuration));
+            rect.anchoredPosition = Vector2.LerpUnclamped(peakPos, originalPos, p);
+            yield return null;
+        }
+
+        if (rect != null)
+        {
+            rect.anchoredPosition = originalPos;
+        }
     }
 
     private IEnumerator ScaleCardX(RectTransform rect, float from, float to, float duration) // NEW: shared helper - eases a card's local X scale between from and to, used for the reveal flip's two halves
