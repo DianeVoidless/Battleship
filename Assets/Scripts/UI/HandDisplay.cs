@@ -44,12 +44,13 @@ public class HandDisplay : MonoBehaviour
             GameObject cardObject = Instantiate(_CardDisplayPrefab, transform);
             CardDisplay display = cardObject.GetComponent<CardDisplay>();
 
-            Sprite sprite = _ArtDatabase.GetCardSprite(card, owner._Color); 
+            Sprite sprite = _ArtDatabase.GetCardSprite(card, owner); // CHANGED: now passes the whole PlayerState, so the Destroyer-enhanced white missile art can be swapped in while its passive is active
             display.SetSprite(sprite);
             display._RepresentedCard = card;
             display._ArtDatabase = _ArtDatabase;
             display._Owner = owner;
             display.RefreshWildcardSprite();
+            display.SetDamageBoostOverlay(_ArtDatabase.GetDamageBoostBadge(card, owner)); // NEW: shows the Cruiser "+1" badge on red damage cards while its passive is active
 
             cardObject.AddComponent<CardHoverEffect>();
 

@@ -209,8 +209,8 @@ public class TurnController : MonoBehaviour
         // NEW: a shield is only ever poppable by a red missile - while one is up, a white missile is
         // fully blocked (no shield damage, no hull damage, nothing), whether it's protecting a
         // Submarine or (via Destroyer) any other ship. Checked before Resolve() since white attacks
-        // never touch _ShieldHP either way, so its value here is exactly what Resolve will also see.
-        bool whiteBlockedByShield = attackCard != null && attackCard._Color == TargetColor.White && cell._ShieldHP > 0;
+        // never touch a shield layer either way, so its value here is exactly what Resolve will also see.
+        bool whiteBlockedByShield = attackCard != null && attackCard._Color == TargetColor.White && cell.HasShield();
 
         // CHANGED: whether the missile plays an impact sound depends on color AND what it's actually
         // hitting. Red missiles always launch, but their impact sound is reserved for a genuine hit

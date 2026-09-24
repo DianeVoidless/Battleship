@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using System.Collections.Generic; // NEW: for the stacked-shield sprite list SetShieldOverlays takes
 
 public class CardDisplay : MonoBehaviour, IPointerClickHandler
 {
@@ -13,7 +14,14 @@ public class CardDisplay : MonoBehaviour, IPointerClickHandler
 
     private bool _HoveringGated; // NEW: is the mouse over this wildcard's gated half right now?
     private bool _HoveringOther; // NEW: is the mouse over this wildcard's other half right now?
-    public Image _ShieldOverlayImage; // NEW: a second Image, layered on top of _CardImage, for the shield icon
+    public Image _ShieldOverlayImage; // a second Image, layered on top of _CardImage, for the shield icon - this is always the RIGHTMOST badge (the original corner slot), showing the OLDEST/bottom-most shield layer whenever more than one is stacked
+    public float _ShieldOverlaySpacing = 4f; // NEW: gap between stacked shield badges (in the same units as the RectTransform), when a card has more than one shield
+
+    private List<Image> _ExtraShieldOverlayImages = new List<Image>(); // NEW: clones of _ShieldOverlayImage, created on demand as more shields stack up - index 0 is the first extra badge (one step left of the base/corner slot), index 1 the next one over, etc.
+    private Vector2 _BaseShieldOverlayAnchoredPosition; // NEW: _ShieldOverlayImage's original corner position, cached once so repeated calls don't keep shifting it
+    private bool _BaseShieldOverlayPositionCached;
+
+    public Image _DamageBoostOverlayImage; // NEW: a third Image, layered on top of _CardImage, for the Cruiser damage-boost "+1" badge - unlike the shield badges this is a simple on/off overlay (a card is either currently boosted or it isn't, never stacked)
 
     public void SetSprite(Sprite sprite) // CHANGED: null now hides the card's image entirely, instead of showing a blank white box
     {
@@ -27,21 +35,90 @@ public class CardDisplay : MonoBehaviour, IPointerClickHandler
             _CardImage.sprite = sprite;
         }
     }
-    public void SetShieldOverlay(Sprite sprite) // NEW: null hides the overlay entirely, a sprite shows and updates it
+
+    public void SetDamageBoostOverlay(Sprite sprite) // NEW: shows or hides the Cruiser damage-boost "+1" badge on this card - null hides it
+    {
+        if (_DamageBoostOverlayImage == null)
+        {
+            return;
+        }
+
+        if (sprite == null)
+        {
+            _DamageBoostOverlayImage.enabled = false;
+        }
+        else
+        {
+            _DamageBoostOverlayImage.enabled = true;
+            _DamageBoostOverlayImage.sprite = sprite;
+        }
+    }
+
+    public void SetShieldOverlays(List<Sprite> sprites) // CHANGED: shields can now stack, so this takes a list instead of a single sprite - null or empty hides every badge. Ordered top-to-bottom exactly like GridCell._ShieldLayers/CardArtDatabase.GetShieldSprites: index 0 is the newest/top-most shield (rendered leftmost, furthest from the card's corner), and the last entry is the oldest/bottom-most one (rendered in the original corner slot, _ShieldOverlayImage itself)
     {
         if (_ShieldOverlayImage == null)
         {
             return;
         }
-        if (sprite == null)
+
+        if (!_BaseShieldOverlayPositionCached) // NEW: remember the corner slot's original position exactly once, before we ever move it, so later calls always measure offsets from the true original spot rather than from wherever a previous call left it
         {
-            _ShieldOverlayImage.enabled = false;
+            _BaseShieldOverlayAnchoredPosition = _ShieldOverlayImage.rectTransform.anchoredPosition;
+            _BaseShieldOverlayPositionCached = true;
         }
-        else
+
+        int count = (sprites != null) ? sprites.Count : 0;
+        int totalExistingSlots = 1 + _ExtraShieldOverlayImages.Count; // the base corner slot plus however many extra badges have ever been created so far
+
+        if (count == 0)
         {
-            _ShieldOverlayImage.enabled = true;
-            _ShieldOverlayImage.sprite = sprite;
+            for (int slot = 0; slot < totalExistingSlots; slot++)
+            {
+                GetShieldOverlaySlot(slot).enabled = false;
+            }
+            return;
         }
+
+        float stepX = _ShieldOverlayImage.rectTransform.sizeDelta.x + _ShieldOverlaySpacing; // NEW: how far apart each stacked badge sits, based on the corner badge's own width
+
+        // slot 0 is the base/corner image, showing the OLDEST/bottom shield (the LAST entry in
+        // 'sprites'); each higher slot steps one badge-width further left and shows the next entry
+        // back through the list, ending with the highest slot showing sprites[0] - the newest/top
+        // shield - furthest from the corner, exactly matching how the mockup reads left (top) to
+        // right (bottom, closest to the card's edge).
+        for (int slot = 0; slot < count; slot++)
+        {
+            Image image = GetShieldOverlaySlot(slot);
+            int spriteIndex = count - 1 - slot;
+            image.enabled = true;
+            image.sprite = sprites[spriteIndex];
+            image.rectTransform.anchoredPosition = _BaseShieldOverlayAnchoredPosition - new Vector2(slot * stepX, 0f);
+        }
+
+        // hide any further slots left over from a previously-bigger stack on this same card (e.g. a
+        // shield just got destroyed and the count dropped) without destroying the cloned GameObjects,
+        // since the same card might need them again later
+        for (int slot = count; slot < totalExistingSlots; slot++)
+        {
+            GetShieldOverlaySlot(slot).enabled = false;
+        }
+    }
+
+    private Image GetShieldOverlaySlot(int slot) // NEW: slot 0 is always the original _ShieldOverlayImage; slot 1+ is a cloned copy, instantiated the first time that many shields stack up and reused after that
+    {
+        if (slot == 0)
+        {
+            return _ShieldOverlayImage;
+        }
+
+        int extraIndex = slot - 1;
+        while (_ExtraShieldOverlayImages.Count <= extraIndex) // NEW: only ever creates as many clones as the highest stack this card has ever actually shown
+        {
+            GameObject clone = Instantiate(_ShieldOverlayImage.gameObject, _ShieldOverlayImage.transform.parent);
+            clone.name = "ShieldOverlay_Extra" + _ExtraShieldOverlayImages.Count;
+            _ExtraShieldOverlayImages.Add(clone.GetComponent<Image>());
+        }
+        return _ExtraShieldOverlayImages[extraIndex];
     }
 
     public void OnPointerClick(PointerEventData eventData)

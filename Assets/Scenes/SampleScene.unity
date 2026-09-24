@@ -659,7 +659,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 96.7}
+  m_SizeDelta: {x: 0, y: 32.73}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!222 &66279216
 CanvasRenderer:
@@ -1013,6 +1013,9 @@ MonoBehaviour:
   _HandPanelRect: {fileID: 780138319}
   _DrawPileRect: {fileID: 1200564015}
   _RevealFlipDuration: 0.25
+  _SubmarineDiscoveredSoundDelay: 0.35
+  _ShockwaveRiseDistance: 14
+  _ShockwaveDuration: 0.25
   _ReshuffleTravelDuration: 0.3
 --- !u!114 &118140370
 MonoBehaviour:
@@ -1684,7 +1687,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 180}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -20, y: 0}
+  m_AnchoredPosition: {x: -20, y: 40}
   m_SizeDelta: {x: 268.5, y: 168.5}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &180622453
@@ -3179,7 +3182,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 40, y: 0}
+  m_AnchoredPosition: {x: 40, y: 30}
   m_SizeDelta: {x: 268.5, y: 168.5}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &383170829
@@ -5054,7 +5057,7 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 1
         m_CallState: 2
-      - m_Target: {fileID: 804478469}
+      - m_Target: {fileID: 1244041070}
         m_TargetAssemblyTypeName: UnityEngine.GameObject, UnityEngine
         m_MethodName: SetActive
         m_Mode: 6
@@ -5064,7 +5067,19 @@ MonoBehaviour:
           m_IntArgument: 0
           m_FloatArgument: 0
           m_StringArgument: 
-          m_BoolArgument: 1
+          m_BoolArgument: 0
+        m_CallState: 2
+      - m_Target: {fileID: 1185821706}
+        m_TargetAssemblyTypeName: UnityEngine.GameObject, UnityEngine
+        m_MethodName: SetActive
+        m_Mode: 6
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
         m_CallState: 2
 --- !u!114 &523861844
 MonoBehaviour:
@@ -5294,8 +5309,11 @@ MonoBehaviour:
   - {fileID: 21300000, guid: e4376a2921eb1de4f823f35e262ca603, type: 3}
   _BlueHealerDamaged:
   - {fileID: 21300000, guid: 47a371837b7913a40baeefe6d539e691, type: 3}
-  _RedShield1HP: {fileID: 21300000, guid: ba761277f4d9e4f4390f2cc7c31f4fae, type: 3}
-  _BlueShield1HP: {fileID: 21300000, guid: 42c3405e27a6975418fe1db6ca009ef4, type: 3}
+  _Shield1HP: {fileID: 21300000, guid: 653d5967af584d445890e6b08f7eed24, type: 3}
+  _Shield2HP: {fileID: 21300000, guid: 821e1fabd95aa2541b02e6a2d60d8465, type: 3}
+  _DamageBoostBadge: {fileID: 21300000, guid: 3067bc8848d262549b2951f1908ef33e, type: 3}
+  _RedWhiteMissileEnhanced: {fileID: 21300000, guid: 8858e82d01dde1142bcf36d340962451, type: 3}
+  _BlueWhiteMissileEnhanced: {fileID: 21300000, guid: d38634a523cd3c44ca678b5834ef794b, type: 3}
 --- !u!4 &549218077
 Transform:
   m_ObjectHideFlags: 0
@@ -5629,7 +5647,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 20, y: 0}
+  m_AnchoredPosition: {x: 20, y: 40}
   m_SizeDelta: {x: 268.5, y: 168.5}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &582603516
@@ -8619,7 +8637,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 180}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -80, y: 0}
+  m_AnchoredPosition: {x: -80, y: 10}
   m_SizeDelta: {x: 268.5, y: 168.5}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &973536021
@@ -8779,7 +8797,7 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 1
         m_CallState: 2
-      - m_Target: {fileID: 804478469}
+      - m_Target: {fileID: 1185821706}
         m_TargetAssemblyTypeName: UnityEngine.GameObject, UnityEngine
         m_MethodName: SetActive
         m_Mode: 6
@@ -8789,7 +8807,19 @@ MonoBehaviour:
           m_IntArgument: 0
           m_FloatArgument: 0
           m_StringArgument: 
-          m_BoolArgument: 1
+          m_BoolArgument: 0
+        m_CallState: 2
+      - m_Target: {fileID: 1244041070}
+        m_TargetAssemblyTypeName: UnityEngine.GameObject, UnityEngine
+        m_MethodName: SetActive
+        m_Mode: 6
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
         m_CallState: 2
 --- !u!114 &974014196
 MonoBehaviour:
@@ -9537,7 +9567,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 60, y: 0}
+  m_AnchoredPosition: {x: 60, y: 20}
   m_SizeDelta: {x: 268.5, y: 168.5}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1114252366
@@ -10154,7 +10184,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TopMenuProximityZone
   _MenuPanel: {fileID: 2051282428}
   _ZoneArea: {fileID: 66279215}
-  _RestHeight: 100
+  _RestHeight: 30
   _RaisedHeight: 245
   _EaseSpeed: 10
 --- !u!1 &1189986854
@@ -12006,7 +12036,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 80, y: 0}
+  m_AnchoredPosition: {x: 80, y: 10}
   m_SizeDelta: {x: 268.5, y: 168.5}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1357245819
@@ -13810,6 +13840,8 @@ MonoBehaviour:
   _MissileSpawnY: -1200
   _MissileFlightDuration: 0.35
   _MissileLaunchStagger: 0.12
+  _CardShakeDuration: 0.2
+  _CardShakeMagnitude: 8
 --- !u!4 &1538662978
 Transform:
   m_ObjectHideFlags: 0
@@ -13859,7 +13891,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 180}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -40, y: 0}
+  m_AnchoredPosition: {x: -40, y: 30}
   m_SizeDelta: {x: 268.5, y: 168.5}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1543378740
@@ -17475,6 +17507,9 @@ MonoBehaviour:
   _HandPanelRect: {fileID: 780138319}
   _DrawPileRect: {fileID: 1318283841}
   _RevealFlipDuration: 0.25
+  _SubmarineDiscoveredSoundDelay: 0.35
+  _ShockwaveRiseDistance: 14
+  _ShockwaveDuration: 0.25
   _ReshuffleTravelDuration: 0.3
 --- !u!114 &1818995824
 MonoBehaviour:
@@ -17991,15 +18026,13 @@ MonoBehaviour:
   - {fileID: 8300000, guid: a94ab090e3c39584ab60a0fc2ceccdf4, type: 3}
   _ToggleClips:
   - {fileID: 8300000, guid: 46970cb6fb0cdf24b9b2d7509142efed, type: 3}
-  _RedMissileLaunchClips: []
   _RedMissileHitClips:
   - {fileID: 8300000, guid: 0365f160346f9bb488b7303e3e3e6766, type: 3}
   - {fileID: 8300000, guid: b6084995ece65d04a8ccb0386e098765, type: 3}
-  _WhiteMissileLaunchClips: []
   _WhiteMissileHitClips:
   - {fileID: 8300000, guid: ce889bf65f8564047827c15860a73ad7, type: 3}
   _SubmarineDiscoveredClips:
-  - {fileID: 8300000, guid: 8e12741bd5da51d4486b8df60226027d, type: 3}
+  - {fileID: 8300000, guid: c407daca3b9dac94ba1bcc44feba90ce, type: 3}
   _PitchVariance: 0.05
 --- !u!4 &1847096843
 Transform:
@@ -18687,7 +18720,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 180}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -60, y: 0}
+  m_AnchoredPosition: {x: -60, y: 20}
   m_SizeDelta: {x: 268.5, y: 168.5}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1927694274
