@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic; // NEW: for the List<Sprite> GetShieldSprites now returns, one entry per stacked shield layer
 
 public class CardArtDatabase : MonoBehaviour
 {
@@ -58,8 +59,20 @@ public class CardArtDatabase : MonoBehaviour
     public Sprite[] _BlueSubmarineDamaged; // NEW
     public Sprite[] _BlueHealerDamaged;    // NEW
 
-    public Sprite _RedShield1HP;  // NEW: shield damaged down to 1 HP ("SHIELD x1")
-    public Sprite _BlueShield1HP; // NEW
+    // CHANGED: the on-ship shield badge (GetShieldSprite, below) used to reuse _RedShield/_BlueShield
+    // (the Shield utility CARD's own hand-face art) for its "2 HP" tier, plus a separate
+    // _RedShield1HP/_BlueShield1HP pair for its "1 HP" tier - four fields total, still split by
+    // color. The badge itself is a plain black/white icon that looks identical on either side, so
+    // it's now just these two shared fields instead - _RedShield/_BlueShield stay exactly as they
+    // were, untouched, still only used for the Shield card's own red/blue-themed face in hand.
+    public Sprite _Shield1HP; // NEW: the on-ship badge shown while a shield has exactly 1 HP left
+    public Sprite _Shield2HP; // NEW: the on-ship badge shown while a shield has 2 (or more) HP left
+
+    public Sprite _DamageBoostBadge; // NEW: the "+1" badge shown on a red damage card in hand while the Cruiser's damage-boost passive is currently active
+
+    public Sprite _RedWhiteMissileEnhanced; // NEW: replaces _RedWhiteMissile entirely on a white missile card in hand while the Destroyer's "can hit any ship" passive is active for its Red owner
+    public Sprite _BlueWhiteMissileEnhanced; // NEW: replaces _BlueWhiteMissile entirely on a white missile card in hand while the Destroyer's "can hit any ship" passive is active for its Blue owner
+
     public Sprite GetShipSprite(GridCell cell, PlayerColor color) // CHANGED: now takes the whole cell, so it can factor in remaining HP
     {
         if (!cell._Revealed)
@@ -181,7 +194,17 @@ public class CardArtDatabase : MonoBehaviour
         return null;
     }
 
-    public Sprite GetWildcardSprite(UtilityType type, PlayerColor owner, bool gatedAvailable, bool hoveringGated, bool hoveringOther) 
+    public Sprite GetCardSprite(Card card, PlayerState owner) // NEW: overload used wherever a PlayerState (rather than just a PlayerColor) is on hand - swaps in the Destroyer-enhanced white missile art in place of the plain one while that passive is active for this card's owner, and otherwise behaves exactly like the PlayerColor overload above
+    {
+        if (card is AttackCard attackCard && attackCard._Color == TargetColor.White && owner.HasActiveShip(ShipType.Destroyer))
+        {
+            return owner._Color == PlayerColor.Red ? _RedWhiteMissileEnhanced : _BlueWhiteMissileEnhanced;
+        }
+
+        return GetCardSprite(card, owner._Color);
+    }
+
+    public Sprite GetWildcardSprite(UtilityType type, PlayerColor owner, bool gatedAvailable, bool hoveringGated, bool hoveringOther)
     {
         WildcardSpriteSet set = (type == UtilityType.CleanseOrExtraPlay)
             ? (owner == PlayerColor.Red ? _RedWildcard1 : _BlueWildcard1)
@@ -200,16 +223,24 @@ public class CardArtDatabase : MonoBehaviour
         return gatedAvailable ? set._Base : set._GatedGray;
     }
 
-    public Sprite GetShieldSprite(GridCell cell, PlayerColor color) // NEW: null means "no shield overlay to show"
+    public List<Sprite> GetShieldSprites(GridCell cell, PlayerColor color) // CHANGED: shields now stack, so this returns one sprite per active layer instead of a single sprite - an empty list means "no shield overlay to show at all". Ordered top-to-bottom, exactly like GridCell._ShieldLayers: index 0 is the newest/top-most shield (shown leftmost), the last entry is the oldest/bottom-most one (shown in the original corner slot). 'color' is unused now that the badge is a single shared icon for both sides, kept as a parameter so every call site (which always has a color on hand anyway) doesn't need to change
     {
-        if (cell._ShieldHP <= 0)
+        List<Sprite> sprites = new List<Sprite>();
+        foreach (int layerHP in cell._ShieldLayers)
+        {
+            sprites.Add(layerHP == 1 ? _Shield1HP : _Shield2HP);
+        }
+        return sprites;
+    }
+
+    public Sprite GetDamageBoostBadge(Card card, PlayerState owner) // NEW: a "+1" badge shown on a red damage card in hand for as long as Cruiser's damage-boost passive is active for its owner - null means "don't show a badge", either because this isn't a red attack card at all or because the Cruiser bonus isn't currently in effect
+    {
+        AttackCard attackCard = card as AttackCard;
+        if (attackCard == null || attackCard._Color != TargetColor.Red)
         {
             return null;
         }
-        if (cell._ShieldHP == 1)
-        {
-            return color == PlayerColor.Red ? _RedShield1HP : _BlueShield1HP;
-        }
-        return color == PlayerColor.Red ? _RedShield : _BlueShield; // 2 (or more) - full shield
+
+        return owner.HasActiveShip(ShipType.Cruiser) ? _DamageBoostBadge : null;
     }
 }

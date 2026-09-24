@@ -419,12 +419,13 @@ public class GameTester : MonoBehaviour
         cardObject.transform.SetAsLastSibling(); // NEW: render on top of the boards, piles, and hand panel for the entire trip
         CardDisplay display = cardObject.GetComponent<CardDisplay>();
 
-        Sprite frontSprite = _HandDisplay._ArtDatabase.GetCardSprite(card, player._Color);
+        Sprite frontSprite = _HandDisplay._ArtDatabase.GetCardSprite(card, player); // CHANGED: now passes the whole PlayerState, so the Destroyer-enhanced white missile art can be swapped in while its passive is active
         display.SetSprite(frontSprite);
         display._RepresentedCard = card;
         display._ArtDatabase = _HandDisplay._ArtDatabase;
         display._Owner = player;
         display.RefreshWildcardSprite();
+        display.SetDamageBoostOverlay(_HandDisplay._ArtDatabase.GetDamageBoostBadge(card, player)); // NEW: matches HandDisplay.ShowHand, so a newly-drawn boosted card doesn't fly in looking plain
 
         LayoutElement layoutElement = cardObject.GetComponent<LayoutElement>();
         if (layoutElement == null)

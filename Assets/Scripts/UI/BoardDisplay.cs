@@ -43,6 +43,7 @@ public class BoardDisplay : MonoBehaviour
 
     [Header("NEW: enemy board reveal flip - plays on a board cell the instant an attack card reveals it for the first time")]
     public float _RevealFlipDuration = 0.25f; // total time for the flip (half shrinking down to edge-on, half growing back out) - the sprite swap happens right at the midpoint, while the card is edge-on and invisible
+    public float _SubmarineDiscoveredSoundDelay = 0.35f; // NEW: how long to hold the Submarine-discovered sting back from the flip's midpoint, so it doesn't get buried under the missile impact sound's own tail - tweak this if it still feels too close together or starts feeling laggy
 
     [Header("NEW: ship-sunk shockwave - plays on the (up to) four cards directly adjacent to a ship the instant it's sunk, each rising slightly outward in its own direction")]
     public float _ShockwaveRiseDistance = 14f; // how far the neighboring card rises, in its own outward direction, at the shake's peak
@@ -102,7 +103,7 @@ public class BoardDisplay : MonoBehaviour
         cardObject.name = "ShipDeckCard"; // NEW: easier to find in the Hierarchy than an unlabeled "CardDisplay(Clone)"
         CardDisplay display = cardObject.GetComponent<CardDisplay>();
         display.SetSprite(_DeckBackSprite);
-        display.SetShieldOverlay(null);
+        display.SetShieldOverlays(null);
 
         // NEW: this panel has a Grid Layout Group on it, which auto-slots any child into its own
         // cells (a single child lands in cell 0, near the top-left) - ignoring anchoredPosition
@@ -189,7 +190,7 @@ public class BoardDisplay : MonoBehaviour
         cardObject.name = "HandDeckCard"; // NEW: so it's easy to spot in the Hierarchy instead of blending in as just another identical "CardDisplay(Clone)" among the 12 grid cards
         CardDisplay display = cardObject.GetComponent<CardDisplay>();
         display.SetSprite(_HandDeckBackSprite);
-        display.SetShieldOverlay(null);
+        display.SetShieldOverlays(null);
 
         LayoutElement layoutElement = cardObject.GetComponent<LayoutElement>();
         if (layoutElement == null)
@@ -306,17 +307,19 @@ public class BoardDisplay : MonoBehaviour
             if (isViewedPlayer && player != null && player._Hand != null && i < player._Hand.Count)
             {
                 Card handCard = player._Hand[i];
-                Sprite frontSprite = _ArtDatabase.GetCardSprite(handCard, player._Color);
+                Sprite frontSprite = _ArtDatabase.GetCardSprite(handCard, player); // CHANGED: now passes the whole PlayerState, so the Destroyer-enhanced white missile art can be swapped in while its passive is active
                 display.SetSprite(frontSprite);
                 display._RepresentedCard = handCard;
                 display._ArtDatabase = _ArtDatabase;
                 display._Owner = player;
                 display.RefreshWildcardSprite();
+                display.SetDamageBoostOverlay(_ArtDatabase.GetDamageBoostBadge(handCard, player)); // NEW: matches HandDisplay.ShowHand, so the flourish deal doesn't briefly show a plain card where the real hand would show a boosted one
             }
             else
             {
                 display.SetSprite(_HandDeckBackSprite);
-                display.SetShieldOverlay(null);
+                display.SetShieldOverlays(null);
+                display.SetDamageBoostOverlay(null);
             }
 
             LayoutElement layoutElement = cardObject.GetComponent<LayoutElement>();
@@ -388,7 +391,7 @@ public class BoardDisplay : MonoBehaviour
         cardObject.name = "DrawPileCard";
         CardDisplay display = cardObject.GetComponent<CardDisplay>();
         display.SetSprite(_HandDeckBackSprite);
-        display.SetShieldOverlay(null);
+        display.SetShieldOverlays(null);
 
         LayoutElement layoutElement = cardObject.GetComponent<LayoutElement>();
         if (layoutElement == null)
@@ -485,8 +488,8 @@ public class BoardDisplay : MonoBehaviour
             display._Owner = player; // NEW: BoardCardHoverEffect needs to know which player this cell belongs to, to tell an enemy cell from an own cell
             cardObject.AddComponent<BoardCardHoverEffect>(); // NEW: hover highlight for this board cell
 
-            Sprite shieldSprite = _ArtDatabase.GetShieldSprite(cell, player._Color);
-            display.SetShieldOverlay(shieldSprite);
+            List<Sprite> shieldSprites = _ArtDatabase.GetShieldSprites(cell, player._Color);
+            display.SetShieldOverlays(shieldSprites);
 
             // NEW: same treatment as the deck/riffle cards - pulled out of the Grid Layout Group's
             // control and centered manually, so its position is fully deterministic instead of
@@ -576,7 +579,7 @@ public class BoardDisplay : MonoBehaviour
             GameObject riffleCard = Instantiate(_CardDisplayPrefab, transform);
             CardDisplay riffleDisplay = riffleCard.GetComponent<CardDisplay>();
             riffleDisplay.SetSprite(backSprite);
-            riffleDisplay.SetShieldOverlay(null);
+            riffleDisplay.SetShieldOverlays(null);
 
             LayoutElement riffleLayout = riffleCard.GetComponent<LayoutElement>();
             if (riffleLayout == null)
@@ -670,8 +673,8 @@ public class BoardDisplay : MonoBehaviour
             display._Owner = player; // NEW: BoardCardHoverEffect needs to know which player this cell belongs to, to tell an enemy cell from an own cell
             cardObject.AddComponent<BoardCardHoverEffect>(); // NEW: hover highlight for this board cell
 
-            Sprite shieldSprite = _ArtDatabase.GetShieldSprite(cell, player._Color);
-            display.SetShieldOverlay(shieldSprite);
+            List<Sprite> shieldSprites = _ArtDatabase.GetShieldSprites(cell, player._Color);
+            display.SetShieldOverlays(shieldSprites);
         }
     }
 
@@ -709,15 +712,27 @@ public class BoardDisplay : MonoBehaviour
 
         Sprite revealedSprite = _ArtDatabase.GetShipSprite(cell, owner._Color);
         target.SetSprite(revealedSprite);
-        Sprite shieldSprite = _ArtDatabase.GetShieldSprite(cell, owner._Color);
-        target.SetShieldOverlay(shieldSprite);
+        List<Sprite> shieldSprites = _ArtDatabase.GetShieldSprites(cell, owner._Color);
+        target.SetShieldOverlays(shieldSprites);
 
-        if (cell._Ship == ShipType.Submarine) // NEW: a distinct sting the instant a Submarine's sprite is what actually gets revealed, right at the flip's midpoint
+        if (cell._Ship == ShipType.Submarine) // a distinct sting shortly after a Submarine's sprite is what actually gets revealed, at the flip's midpoint
         {
-            AudioManager.Instance?.PlaySubmarineDiscoveredSFX();
+            // CHANGED: this used to fire immediately at the flip's midpoint, which lands it right on top
+            // of (or a hair after) the missile's own impact sound - close enough that the two blend
+            // together and the discovery sting gets buried under the impact clip's tail. Delaying the
+            // SOUND ONLY (via its own short-lived coroutine, not a yield in this one) gives the impact
+            // sound room to die down first without holding up the visual flip itself, which keeps
+            // playing out on its own normal timing.
+            StartCoroutine(PlaySubmarineDiscoveredSFXDelayed(_SubmarineDiscoveredSoundDelay));
         }
 
         yield return ScaleCardX(cardRect, 0f, 1f, halfDuration); // grow back out, now showing the revealed face
+    }
+
+    private IEnumerator PlaySubmarineDiscoveredSFXDelayed(float delay) // NEW: small helper so the discovery sting can be pushed back a beat from the missile impact sound without blocking PlayCellRevealFlip's own visual timing
+    {
+        yield return new WaitForSeconds(delay);
+        AudioManager.Instance?.PlaySubmarineDiscoveredSFX();
     }
 
     public IEnumerator PlayShockwave(GridCell sunkCell) // NEW: plays right after a ship is sunk - finds the (up to) four cards immediately above/below/left/right of the sunk cell ON THIS BOARD, and briefly rises each one outward in its own direction (up rises up, down rises down, left rises left, right rises right). Works purely off each existing card's own on-screen anchoredPosition rather than the underlying data list's index order, so it's correct regardless of how DealFromDeck may have flipped the row order for a rotated/far-side board.
@@ -848,7 +863,7 @@ public class BoardDisplay : MonoBehaviour
         cardObject.name = "ReshuffleCard";
         CardDisplay display = cardObject.GetComponent<CardDisplay>();
         display.SetSprite(_HandDeckBackSprite);
-        display.SetShieldOverlay(null);
+        display.SetShieldOverlays(null);
 
         LayoutElement layoutElement = cardObject.GetComponent<LayoutElement>();
         if (layoutElement == null)
