@@ -63,11 +63,17 @@ public class BoardCardHoverEffect : MonoBehaviour, IPointerEnterHandler, IPointe
             return !usingHealOrShieldRightNow; // default: any enemy cell (relative to whoever's turn it is) is hoverable, UNLESS a Heal/Shield action is currently in progress
         }
 
-        // own cell - only hoverable while it's a legal Heal target the player currently has the
-        // means to use (an active Healer ship, or a Heal-branch wildcard actually chosen right now),
-        // or a legal Shield target with a Shield card actually chosen right now
+        // own cell - only hoverable while it's a legal Heal target AND a heal choice is actually in
+        // progress right now: either the forced turn-start Healer pick is still up, or a Heal-branch
+        // wildcard is the currently pending card. CHANGED: this used to check
+        // activePlayer.HasActiveShip(ShipType.PatrolBoat) instead of _AwaitingHealerChoice - but the
+        // Patrol Boat's heal is a one-time, forced choice at the start of its owner's turn (see
+        // GameState.TriggerHealerAtTurnStart), not a repeatable action for the rest of the turn. Since
+        // the ship stays "active" long after that single choice is resolved, checking HasActiveShip
+        // kept every damaged own cell hoverable (as if still heal-targetable) for the whole rest of
+        // the turn, even though clicking one by then would do nothing at all.
         bool isLegalHealTarget = cell._Revealed && cell._DamageInstances.Count > 0 && !cell.IsSunk();
-        bool canHealRightNow = activePlayer.HasActiveShip(ShipType.PatrolBoat) || (pendingCard is UtilityCard healCard && healCard._ChosenBranch == CardBranch.Heal);
+        bool canHealRightNow = game._AwaitingHealerChoice || (pendingCard is UtilityCard healCard && healCard._ChosenBranch == CardBranch.Heal);
         if (isLegalHealTarget && canHealRightNow)
         {
             return true;

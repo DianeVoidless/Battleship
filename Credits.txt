@@ -1,0 +1,4 @@
+shield icon: https://www.flaticon.com/authors/magnific
+copy icon: <a href="https://www.flaticon.com/free-icons/ui" title="ui icons">Ui icons created by Radhe Icon - Flaticon</a>
+switch icon: <a href="https://www.flaticon.com/free-icons/swap" title="swap icons">Swap icons created by bqlqn - Flaticon</a>
+crown icon: <a href="https://www.flaticon.com/free-icons/prince" title="prince icons">Prince icons created by hqrloveq - Flaticon</a>
