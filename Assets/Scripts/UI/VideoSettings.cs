@@ -31,10 +31,10 @@ public class VideoSettings : MonoBehaviour
         BuildResolutionOptions();
         BuildFrameRateOptions();
 
-        bool savedFullscreen = PlayerPrefs.GetInt(FullscreenKey, Screen.fullScreen ? 1 : 0) == 1;
-        int savedResolutionIndex = PlayerPrefs.GetInt(ResolutionIndexKey, GetCurrentResolutionIndex());
-        int savedFrameRateIndex = PlayerPrefs.GetInt(FrameRateIndexKey, 1); // NEW: defaults to 60 FPS (index 1) the very first time the game ever runs
-        bool savedVSync = PlayerPrefs.GetInt(VSyncKey, 0) == 1;
+        bool savedFullscreen = PlayerPrefs.GetInt(ClonePrefs.Key(FullscreenKey), Screen.fullScreen ? 1 : 0) == 1; // CHANGED: routed through ClonePrefs
+        int savedResolutionIndex = PlayerPrefs.GetInt(ClonePrefs.Key(ResolutionIndexKey), GetCurrentResolutionIndex()); // CHANGED: routed through ClonePrefs
+        int savedFrameRateIndex = PlayerPrefs.GetInt(ClonePrefs.Key(FrameRateIndexKey), 1); // CHANGED: routed through ClonePrefs - defaults to 60 FPS (index 1) the very first time the game ever runs
+        bool savedVSync = PlayerPrefs.GetInt(ClonePrefs.Key(VSyncKey), 0) == 1; // CHANGED: routed through ClonePrefs
 
         savedResolutionIndex = Mathf.Clamp(savedResolutionIndex, 0, _AvailableResolutions.Count - 1);
         savedFrameRateIndex = Mathf.Clamp(savedFrameRateIndex, 0, _FrameRateValues.Length - 1);
@@ -86,28 +86,28 @@ public class VideoSettings : MonoBehaviour
 
     public void SetFullscreen(bool isFullscreen) // NEW: wire the Fullscreen toggle's OnValueChanged to this
     {
-        PlayerPrefs.SetInt(FullscreenKey, isFullscreen ? 1 : 0);
+        PlayerPrefs.SetInt(ClonePrefs.Key(FullscreenKey), isFullscreen ? 1 : 0); // CHANGED: routed through ClonePrefs
         PlayerPrefs.Save();
         ApplyResolution(_ResolutionDropdown.value, isFullscreen);
     }
 
     public void SetResolution(int index) // NEW: wire the Resolution dropdown's OnValueChanged to this
     {
-        PlayerPrefs.SetInt(ResolutionIndexKey, index);
+        PlayerPrefs.SetInt(ClonePrefs.Key(ResolutionIndexKey), index); // CHANGED: routed through ClonePrefs
         PlayerPrefs.Save();
         ApplyResolution(index, _FullscreenToggle.isOn);
     }
 
     public void SetFrameRate(int index) // NEW: wire the Frame Rate dropdown's OnValueChanged to this
     {
-        PlayerPrefs.SetInt(FrameRateIndexKey, index);
+        PlayerPrefs.SetInt(ClonePrefs.Key(FrameRateIndexKey), index); // CHANGED: routed through ClonePrefs
         PlayerPrefs.Save();
         ApplyFrameRate(index);
     }
 
     public void SetVSync(bool enabled) // NEW: wire the VSync toggle's OnValueChanged to this
     {
-        PlayerPrefs.SetInt(VSyncKey, enabled ? 1 : 0);
+        PlayerPrefs.SetInt(ClonePrefs.Key(VSyncKey), enabled ? 1 : 0); // CHANGED: routed through ClonePrefs
         PlayerPrefs.Save();
         ApplyVSync(enabled);
     }

@@ -678,7 +678,7 @@ public class BoardDisplay : MonoBehaviour
         }
     }
 
-    private CardDisplay FindDisplayForCell(GridCell cell) // NEW: shared lookup - the same "find the existing CardDisplay by its represented cell" search PlayCellRevealFlip already did inline, factored out so PlayShockwave can reuse it (once for the sunk cell itself, then again per neighbor cell it finds geometrically)
+    public CardDisplay FindDisplayForCell(GridCell cell) // CHANGED: was private - now also called from TurnController's network-relay code, which needs to resolve the LOCAL CardDisplay for a networked opponent's move before replaying its missile animation (each machine has its own separate CardDisplay instances, so this lookup has to happen fresh on each machine, not travel over the network itself)
     {
         foreach (Transform child in transform)
         {
@@ -848,7 +848,7 @@ public class BoardDisplay : MonoBehaviour
         }
     }
 
-    public IEnumerator PlayReshuffleFromDiscard(RectTransform discardRect, PlayerState player) // NEW: called right after the real discard pile art has already been hidden (its job is done - the discard pile is genuinely empty now) - spawns a flourish card at that same spot, slides it to this board's own center (the exact spot the original deck slide-in/shuffle used), riffle-shuffles it there just like the very first deal, then slides it into the draw pile spot and disappears, leaving the already-present, never-hidden real DrawPile art as the (now replenished) pile
+    public IEnumerator PlayReshuffleFromDiscard(RectTransform discardRect, PlayerState player) // NEW: called right after the real discard pile art AND the real (now-stale) draw pile art have both already been hidden (see GameTester.PlayReshuffleMerge) - spawns a flourish card at the discard's old spot, slides it to this board's own center (the exact spot the original deck slide-in/shuffle used), riffle-shuffles it there just like the very first deal, then slides it into the draw pile spot and disappears - GameTester's SyncDrawPileVisibility (called right after this returns) is what re-shows the real, now-replenished DrawPile art
     {
         if (discardRect == null || _DrawPileRect == null)
         {
@@ -900,7 +900,7 @@ public class BoardDisplay : MonoBehaviour
 
         if (cardObject != null)
         {
-            Destroy(cardObject); // the real DrawPile art was never hidden - it's already sitting right there to take over
+            Destroy(cardObject); // CHANGED: the real DrawPile art is hidden at this point (see this method's own comment) - GameTester's SyncDrawPileVisibility call right after this coroutine returns is what brings it back, now genuinely replenished
         }
     }
 

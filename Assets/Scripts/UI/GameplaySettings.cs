@@ -21,14 +21,14 @@ public class GameplaySettings : MonoBehaviour
     [Header("Needed so toggling Auto Switch View applies immediately, not just on next launch")]
     public GameTester _GameTester;
 
-    void Awake()
+    void OnEnable() // CHANGED from Awake - Awake only ever fires ONCE per object lifetime, the first time this GameObject becomes active. Since AppLaunchFlow force-deactivates every panel at launch (see its own comment), this panel's first-ever activation happens at scene load, BEFORE the player has typed anything on the first-launch username screen - so Awake was reading (and caching into the field) a blank saved username that never got refreshed on later visits to this tab. OnEnable fires every single time the panel is shown, so it always reflects whatever's actually saved right now - same fix already used on ColorChoicePanel for the same reason.
     {
-        bool savedAutoSwitchView = PlayerPrefs.GetInt(AutoSwitchViewKey, 1) == 1; // NEW: defaults to on, matching GameTester's original default
-        bool savedReduceMotion = PlayerPrefs.GetInt(ReduceMotionKey, 0) == 1;
+        bool savedAutoSwitchView = PlayerPrefs.GetInt(ClonePrefs.Key(AutoSwitchViewKey), 1) == 1; // CHANGED: routed through ClonePrefs - defaults to on, matching GameTester's original default
+        bool savedReduceMotion = PlayerPrefs.GetInt(ClonePrefs.Key(ReduceMotionKey), 0) == 1; // CHANGED: routed through ClonePrefs
 
         _AutoSwitchViewToggle.SetIsOnWithoutNotify(savedAutoSwitchView);
         _ReduceMotionToggle.SetIsOnWithoutNotify(savedReduceMotion);
-        _UsernameField.SetTextWithoutNotify(PlayerPrefs.GetString(UsernameKey, "")); // NEW: shows whatever name was already saved (from here or from the first-launch screen)
+        _UsernameField.SetTextWithoutNotify(PlayerPrefs.GetString(ClonePrefs.Key(UsernameKey), "")); // CHANGED: routed through ClonePrefs - shows whatever name was already saved (from here or from the first-launch screen)
 
         if (_GameTester != null)
         {
@@ -44,7 +44,7 @@ public class GameplaySettings : MonoBehaviour
             return; // NEW: never overwrite a real saved name with a blank one - while the player is still mid-clearing/retyping, the old name just stays saved until a valid one replaces it
         }
 
-        PlayerPrefs.SetString(UsernameKey, sanitized);
+        PlayerPrefs.SetString(ClonePrefs.Key(UsernameKey), sanitized); // CHANGED: routed through ClonePrefs
         PlayerPrefs.Save();
     }
 
@@ -58,7 +58,7 @@ public class GameplaySettings : MonoBehaviour
 
     public void SetAutoSwitchView(bool value) // NEW: wire the Auto Switch View toggle's OnValueChanged to this
     {
-        PlayerPrefs.SetInt(AutoSwitchViewKey, value ? 1 : 0);
+        PlayerPrefs.SetInt(ClonePrefs.Key(AutoSwitchViewKey), value ? 1 : 0); // CHANGED: routed through ClonePrefs
         PlayerPrefs.Save();
 
         if (_GameTester != null)
@@ -69,7 +69,7 @@ public class GameplaySettings : MonoBehaviour
 
     public void SetReduceMotion(bool value) // NEW: wire the Reduce Motion toggle's OnValueChanged to this
     {
-        PlayerPrefs.SetInt(ReduceMotionKey, value ? 1 : 0);
+        PlayerPrefs.SetInt(ClonePrefs.Key(ReduceMotionKey), value ? 1 : 0); // CHANGED: routed through ClonePrefs
         PlayerPrefs.Save();
     }
 }

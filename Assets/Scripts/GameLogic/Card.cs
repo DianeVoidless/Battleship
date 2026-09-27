@@ -3,7 +3,9 @@ using UnityEngine;
 
 public class Card
 {
-    public virtual CardTargetMode GetTargetMode() 
+    public int _Id = -1; // NEW: stable identifier assigned once per card at deal time (see GameSetup.BuildCardDeck) - lets the network relay tell the other machine "the card with this ID" instead of a raw object reference, which can't cross the network. -1 means "not part of a dealt deck" (shouldn't normally be seen once a match has started).
+
+    public virtual CardTargetMode GetTargetMode()
     { 
         return CardTargetMode.None; 
     }

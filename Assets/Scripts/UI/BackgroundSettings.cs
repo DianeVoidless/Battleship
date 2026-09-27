@@ -18,14 +18,14 @@ public class BackgroundSettings : MonoBehaviour
 
     void Awake()
     {
-        int savedIndex = PlayerPrefs.GetInt(PrefsKey, 0); // defaults to 0 (your current texture) the very first time the game ever runs
+        int savedIndex = PlayerPrefs.GetInt(ClonePrefs.Key(PrefsKey), 0); // CHANGED: routed through ClonePrefs - defaults to 0 (your current texture) the very first time the game ever runs
         ApplyBackground(savedIndex);
     }
 
     public void SelectBackground(int index) // NEW: called by each thumbnail button in the Background tab
     {
         ApplyBackground(index);
-        PlayerPrefs.SetInt(PrefsKey, index);
+        PlayerPrefs.SetInt(ClonePrefs.Key(PrefsKey), index); // CHANGED: routed through ClonePrefs
         PlayerPrefs.Save();
     }
 
