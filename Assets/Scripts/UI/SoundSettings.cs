@@ -20,33 +20,33 @@ public class SoundSettings : MonoBehaviour
     {
         // Restore saved values into the UI without re-triggering the OnValueChanged callbacks below
         // (SetValueWithoutNotify avoids an unnecessary save-to-self loop on startup)
-        _MasterSlider.SetValueWithoutNotify(PlayerPrefs.GetFloat(MasterVolumeKey, 1f));
-        _MusicSlider.SetValueWithoutNotify(PlayerPrefs.GetFloat(MusicVolumeKey, 1f));
-        _SFXSlider.SetValueWithoutNotify(PlayerPrefs.GetFloat(SFXVolumeKey, 1f));
-        _MuteToggle.SetIsOnWithoutNotify(PlayerPrefs.GetInt(MutedKey, 0) == 1);
+        _MasterSlider.SetValueWithoutNotify(PlayerPrefs.GetFloat(ClonePrefs.Key(MasterVolumeKey), 1f)); // CHANGED: routed through ClonePrefs
+        _MusicSlider.SetValueWithoutNotify(PlayerPrefs.GetFloat(ClonePrefs.Key(MusicVolumeKey), 1f)); // CHANGED: routed through ClonePrefs
+        _SFXSlider.SetValueWithoutNotify(PlayerPrefs.GetFloat(ClonePrefs.Key(SFXVolumeKey), 1f)); // CHANGED: routed through ClonePrefs
+        _MuteToggle.SetIsOnWithoutNotify(PlayerPrefs.GetInt(ClonePrefs.Key(MutedKey), 0) == 1); // CHANGED: routed through ClonePrefs
     }
 
     public void SetMasterVolume(float value) // NEW: wire the Master slider's OnValueChanged to this
     {
-        PlayerPrefs.SetFloat(MasterVolumeKey, value);
+        PlayerPrefs.SetFloat(ClonePrefs.Key(MasterVolumeKey), value); // CHANGED: routed through ClonePrefs
         PlayerPrefs.Save();
     }
 
     public void SetMusicVolume(float value) // NEW: wire the Music slider's OnValueChanged to this
     {
-        PlayerPrefs.SetFloat(MusicVolumeKey, value);
+        PlayerPrefs.SetFloat(ClonePrefs.Key(MusicVolumeKey), value); // CHANGED: routed through ClonePrefs
         PlayerPrefs.Save();
     }
 
     public void SetSFXVolume(float value) // NEW: wire the SFX slider's OnValueChanged to this
     {
-        PlayerPrefs.SetFloat(SFXVolumeKey, value);
+        PlayerPrefs.SetFloat(ClonePrefs.Key(SFXVolumeKey), value); // CHANGED: routed through ClonePrefs
         PlayerPrefs.Save();
     }
 
     public void SetMuted(bool muted) // NEW: wire the Mute toggle's OnValueChanged to this
     {
-        PlayerPrefs.SetInt(MutedKey, muted ? 1 : 0);
+        PlayerPrefs.SetInt(ClonePrefs.Key(MutedKey), muted ? 1 : 0); // CHANGED: routed through ClonePrefs
         PlayerPrefs.Save();
     }
 }

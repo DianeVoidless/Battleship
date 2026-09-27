@@ -18,7 +18,7 @@ public class UsernameInputScreen : MonoBehaviour // NEW: the first-launch-only "
             return; // NEW: an empty name can't be confirmed - the arrow simply does nothing until something's actually typed, no need for a separate error message for something this obvious
         }
 
-        PlayerPrefs.SetString(GameplaySettings.UsernameKey, sanitized); // CHANGED: shares the same PlayerPrefs key as the Settings screen's own username field, so whichever one last wrote it is always what the other reads
+        PlayerPrefs.SetString(ClonePrefs.Key(GameplaySettings.UsernameKey), sanitized); // CHANGED: routed through ClonePrefs - shares the same PlayerPrefs key as the Settings screen's own username field, so whichever one last wrote it is always what the other reads
         PlayerPrefs.Save();
 
         _Self.SetActive(false);

@@ -41,7 +41,7 @@ public class TopMenuProximityZone : MonoBehaviour // NEW: same pattern as HandPr
 
         SetRaised(wantRaised);
 
-        if (PlayerPrefs.GetInt(GameplaySettings.ReduceMotionKey, 0) == 1) // NEW: Reduce Motion - snap straight to the target instead of easing into it
+        if (PlayerPrefs.GetInt(ClonePrefs.Key(GameplaySettings.ReduceMotionKey), 0) == 1) // CHANGED: routed through ClonePrefs - Reduce Motion - snap straight to the target instead of easing into it
         {
             _MenuPanel.anchoredPosition = _TargetPosition;
         }

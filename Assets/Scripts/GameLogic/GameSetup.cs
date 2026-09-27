@@ -2,6 +2,13 @@ using System.Collections.Generic;
 
 public static class GameSetup
 {
+    private static System.Random _SharedRng; // NEW: shared across every shuffle/coin-flip in a match - see SeedSharedRng. Both players seed this with the SAME number at match start, and since neither player ever calls System.Random anywhere else in the actual gameplay code, giving every shuffle (including a mid-match reshuffle when a draw pile runs dry) the SAME seeded sequence keeps both machines' decks - and therefore both boards - dealt identically forever, as long as both sides process the same moves in the same order.
+
+    public static void SeedSharedRng(int seed) // NEW: call this ONCE, with the same seed on both machines, before BeginMatch() builds anything - see GameTester.BeginMatch
+    {
+        _SharedRng = new System.Random(seed);
+    }
+
     public static List<GridCell> BuildBoardDeck()
     {
         List<GridCell> deck = new List<GridCell>();
@@ -22,11 +29,14 @@ public static class GameSetup
 
     public static void ShuffleDeck<T>(List<T> deck)
     {
-        System.Random _rng = new System.Random();
-        
+        if (_SharedRng == null) // CHANGED: fall back to a fresh, wall-clock-seeded Random if nobody ever called SeedSharedRng - keeps this working exactly as before for local/offline testing that never goes through the networked match flow
+        {
+            _SharedRng = new System.Random();
+        }
+
         for (int i = deck.Count - 1; i > 0; i--)
         {
-            int j = _rng.Next(i+1);
+            int j = _SharedRng.Next(i+1);
 
             T temp = deck[i];
             deck[i] = deck[j];
@@ -70,6 +80,11 @@ public static class GameSetup
             deck.Add(new AttackCard(TargetColor.White, 1));
         }
 
+        for (int i = 0; i < deck.Count; i++) // NEW: give every card in this deck a stable ID (0..count-1) - the network relay uses this to tell the other machine "this exact card" instead of a reference, which can't cross the network
+        {
+            deck[i]._Id = i;
+        }
+
         return deck;
     }
 
@@ -100,8 +115,12 @@ public static class GameSetup
         SetupPlayer(game._PlayerRed);
         SetupPlayer(game._PlayerBlue);
 
-        System.Random rng = new System.Random();
-        if(rng.Next(2) == 0)
+        if (_SharedRng == null) // CHANGED: same fallback as ShuffleDeck, for local/offline testing
+        {
+            _SharedRng = new System.Random();
+        }
+
+        if(_SharedRng.Next(2) == 0)
         {
             game._ActivePlayer = PlayerColor.Red;
         }

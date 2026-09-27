@@ -21,7 +21,7 @@ public class AppLaunchFlow : MonoBehaviour // NEW: decides which single top-leve
         _SettingsScene.SetActive(false);
         _InGame.SetActive(false);
 
-        bool hasUsername = PlayerPrefs.HasKey(GameplaySettings.UsernameKey) && PlayerPrefs.GetString(GameplaySettings.UsernameKey).Trim().Length > 0; // NEW: the ONLY thing that decides "first ever launch" - a saved, non-blank username. No separate "have I launched before" flag needed, since the two questions are really the same one here.
+        bool hasUsername = PlayerPrefs.HasKey(ClonePrefs.Key(GameplaySettings.UsernameKey)) && PlayerPrefs.GetString(ClonePrefs.Key(GameplaySettings.UsernameKey)).Trim().Length > 0; // CHANGED: routed through ClonePrefs - the ONLY thing that decides "first ever launch" - a saved, non-blank username. No separate "have I launched before" flag needed, since the two questions are really the same one here.
 
         if (hasUsername)
         {

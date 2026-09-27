@@ -150,12 +150,12 @@ public class AudioManager : MonoBehaviour
             return; // nothing assigned yet for this sound family - safe to skip
         }
 
-        if (PlayerPrefs.GetInt(SoundSettings.MutedKey, 0) == 1)
+        if (PlayerPrefs.GetInt(ClonePrefs.Key(SoundSettings.MutedKey), 0) == 1) // CHANGED: routed through ClonePrefs so a ParrelSync clone Editor instance uses its own separate saved value instead of sharing the original project's
         {
             return; // muted - respect the Sound tab's toggle
         }
 
-        float volume = PlayerPrefs.GetFloat(SoundSettings.MasterVolumeKey, 1f) * PlayerPrefs.GetFloat(SoundSettings.SFXVolumeKey, 1f);
+        float volume = PlayerPrefs.GetFloat(ClonePrefs.Key(SoundSettings.MasterVolumeKey), 1f) * PlayerPrefs.GetFloat(ClonePrefs.Key(SoundSettings.SFXVolumeKey), 1f); // CHANGED: routed through ClonePrefs
         if (volume <= 0f)
         {
             return;
